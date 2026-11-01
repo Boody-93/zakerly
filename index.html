@@ -11682,14 +11682,10 @@
 
     window.renderLessonsList = function (noNew) {
         const deck = lsScope();
-        let list = (deck === 'root')
-            ? lessons.slice().sort((a, b) => b.updated - a.updated)
+        // إظهار الدروس الخاصة فقط بهذا المجلد أو القسم بدقة دون تكرارها في أماكن أخرى
+        const list = (deck === 'root')
+            ? lessons.filter(l => !l.deckId || l.deckId === 'root').sort((a, b) => b.updated - a.updated)
             : lessons.filter(l => l.deckId === deck).sort((a, b) => b.updated - a.updated);
-        
-        // لو مفيش دروس مخصصة للقسم ده، اعرض الدروس المتاحة عشان المستخدم يقدر يذاكر فوراً
-        if (!list.length && lessons.length > 0) {
-            list = lessons.slice().sort((a, b) => b.updated - a.updated);
-        }
 
         const head = noNew ? '' : `<button class="ls-new" onclick="lsCreate()">＋ ${T('درس جديد', 'New lesson')}</button>`;
         if (!list.length) return noNew ? '' : `<div class="ls-list">${head}<div class="ls-empty">📖<br>${T('لسه مفيش دروس هنا. اعمل أول درس!', 'No lessons yet.')}</div></div>`;
