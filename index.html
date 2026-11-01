@@ -6236,7 +6236,11 @@
 
         function playAlarmSound() {
             try {
-                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                if (navigator.vibrate) navigator.vibrate([300, 150, 300]);
+            } catch (e) { }
+            try {
+                const ctx = window.zkAudioCtx || new (window.AudioContext || window.webkitAudioContext)();
+                if (ctx.state === 'suspended') ctx.resume();
                 const osc = ctx.createOscillator();
                 const gain = ctx.createGain();
                 osc.connect(gain);
@@ -9313,16 +9317,24 @@
             const title = t('notifTitle') || '⏰ حان وقت مراجعة كارت!';
             const body = `${t('notifBody') || 'حان موعد مراجعة:'} ${card.front}`;
 
-            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+            // محاولة إرسال إشعار نظام حقيقي على الهاتف
+            if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.ready.then(reg => {
                     reg.showNotification(title, {
                         body: body,
                         icon: './icon-192.png',
                         badge: './icon-192.png',
-                        vibrate: [200, 100, 200],
-                        data: { cardId: card.id }
+                        vibrate: [300, 150, 300],
+                        data: { cardId: card.id },
+                        requireInteraction: true
                     });
-                }).catch(() => {});
+                }).catch(() => {
+                    if ("Notification" in window && Notification.permission === "granted") {
+                        try {
+                            new Notification(title, { body: body, icon: './icon-192.png' });
+                        } catch (e) { }
+                    }
+                });
             } else if ("Notification" in window && Notification.permission === "granted") {
                 try {
                     new Notification(title, {
@@ -9689,8 +9701,24 @@
             };
             card.nextReview = r.first;
             card.done = false;
-            if ('Notification' in window && Notification.permission === 'default') {
-                try { Notification.requestPermission(); } catch (e) { }
+            card.isScheduled = true;
+            alreadyNotifiedId = null;
+
+            // فتح وتفعيل الصوت بنقرة المستخدم ليعمل التنبيه حتى في الخلفية
+            try {
+                if (!window.zkAudioCtx) window.zkAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (window.zkAudioCtx.state === 'suspended') window.zkAudioCtx.resume();
+            } catch (e) { }
+
+            // طلب إذن الإشعارات فوراً لو لم يكن مفعلاً
+            if ('Notification' in window && Notification.permission !== 'granted') {
+                try {
+                    Notification.requestPermission().then(perm => {
+                        if (perm === 'granted') {
+                            zkToast(isAr ? '🔔 تم تفعيل إشعارات الهاتف بنجاح!' : '🔔 Phone notifications enabled!');
+                        }
+                    });
+                } catch (e) { }
             }
             closeScheduleModal();
             saveCards();
@@ -11570,7 +11598,34 @@
     <script id="ls-studio">
 
 (function () {
-    const KEY = 'my_lessons_v1'; let lessons = []; try { lessons = JSON.parse(localStorage.getItem(KEY)) || [] } catch (e) { }
+    const KEY = 'my_lessons_v1';
+    let lessons = [];
+    try {
+        lessons = JSON.parse(localStorage.getItem(KEY)) || [];
+    } catch (e) { }
+
+    // تجهيز درس افتراضي جاهز وغني للمستخدم فوراً عند أول تشغيل
+    if (!Array.isArray(lessons) || lessons.length === 0) {
+        lessons = [{
+            id: 'ls_welcome_1',
+            deckId: 'root',
+            title: 'الدرس الأول: أسرار المذاكرة الذكية 🚀',
+            html: `<h2>أهلاً بك في استوديو الدروس الذكية 📖</h2>
+<p>هنا يمكنك كتابة وتدوين دروسك ومحاضراتك، أو لصق أي ملخص للمذاكرة.</p>
+<div class="ls-blk ls-note" data-l="💡 ملاحظة"><p><b>كيف تستفيد من هذا الدرس؟</b><br>ظلل أي جملة أو تعريف مهم وستظهر لك أداة سريعة لتحويلها إلى سؤال وجواب أو كارت فلاش كارد فوراً!</p></div>
+<p><b>مميزات حصرية في هذا المحرر:</b></p>
+<ul class="ls-tasks">
+<li><input type="checkbox" checked contenteditable="false"> تظليل فسفوري بألوان متعددة لتحديد أهم النقاط.</li>
+<li><input type="checkbox" checked contenteditable="false"> استماع صوتي ناطق للدرس بالكامل بالضغط على زر السماعة بالأعلى 🔊.</li>
+<li><input type="checkbox" checked contenteditable="false"> توليد كروت تلقائياً بضغطة زر <b>⚡ توليد كروت</b>.</li>
+</ul>
+<div class="ls-blk ls-ex" data-l="📝 مثال"><p><b>سؤال تجريبي:</b> ما هي أفضل طريقة لتثبيت المعلومات؟<br><b>الإجابة:</b> التكرار المتباعد والاختبار الذاتي (Flashcards Active Recall).</p></div>
+<p><br></p>`,
+            created: Date.now(),
+            updated: Date.now()
+        }];
+        try { localStorage.setItem(KEY, JSON.stringify(lessons)); } catch (e) { }
+    }
     const T = (a, e) => (typeof appLang !== 'undefined' && appLang !== 'ar') ? e : a;
     const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     const $ = id => document.getElementById(id);
@@ -11627,14 +11682,20 @@
 
     window.renderLessonsList = function (noNew) {
         const deck = lsScope();
-        const list = (deck === 'root')
+        let list = (deck === 'root')
             ? lessons.slice().sort((a, b) => b.updated - a.updated)
             : lessons.filter(l => l.deckId === deck).sort((a, b) => b.updated - a.updated);
+        
+        // لو مفيش دروس مخصصة للقسم ده، اعرض الدروس المتاحة عشان المستخدم يقدر يذاكر فوراً
+        if (!list.length && lessons.length > 0) {
+            list = lessons.slice().sort((a, b) => b.updated - a.updated);
+        }
+
         const head = noNew ? '' : `<button class="ls-new" onclick="lsCreate()">＋ ${T('درس جديد', 'New lesson')}</button>`;
         if (!list.length) return noNew ? '' : `<div class="ls-list">${head}<div class="ls-empty">📖<br>${T('لسه مفيش دروس هنا. اعمل أول درس!', 'No lessons yet.')}</div></div>`;
         return `<div class="ls-list">${head}${list.map(l => {
             const n = cards.filter(c => c.lessonId === l.id).length;
-            return `<div class="ls-item" onclick="lsOpen('${l.id}')"><div class="ls-ic">📖</div><div class="ls-meta"><b>${esc(l.title || T('درس بدون عنوان', 'Untitled'))}</b><small>🃏 ${n} · ${new Date(l.updated).toLocaleDateString()}</small></div><button onclick="event.stopPropagation();lsDelete('${l.id}')">🗑</button></div>`
+            return `<div class="ls-item" data-id="${l.id}" onclick="lsOpen('${l.id}')"><div class="ls-ic">📖</div><div class="ls-meta"><b>${esc(l.title || T('درس بدون عنوان', 'Untitled'))}</b><small>🃏 ${n} · ${new Date(l.updated).toLocaleDateString()}</small></div><button onclick="event.stopPropagation();lsDelete('${l.id}')">🗑</button></div>`
         }).join('')}</div>`;
     };
 
@@ -11829,10 +11890,17 @@
     }
 
     window.lsOpen = function (id) {
-        cur = lessons.find(l => l.id === id); if (!cur) return;
+        const oldOv = document.getElementById('ls-ov');
+        if (oldOv) oldOv.remove();
+
+        cur = lessons.find(l => String(l.id) === String(id));
+        if (!cur && lessons.length > 0) cur = lessons[0];
+        if (!cur) return;
         isReaderMode = false;
         isSpeakingLesson = false;
-        ov = document.createElement('div'); ov.id = 'ls-ov';
+        ov = document.createElement('div');
+        ov.id = 'ls-ov';
+        ov.style.cssText = 'position:fixed !important; inset:0 !important; z-index:99999 !important; width:100vw !important; height:100dvh !important; display:flex !important; flex-direction:column !important;';
         const b = (f, iconHtml, t, cls = 'ls-btn-icon', extraId = '') => `<button class="${cls}" ${extraId ? `id="${extraId}"` : ''} onclick="${f}"${t ? ` title="${t}"` : ''}>${iconHtml}</button>`;
 
         ov.innerHTML = `
@@ -11925,7 +11993,7 @@
                 <button class="ls-mic-btn" id="ls-mic-btn" onclick="lsToggleDictation()" title="${T('بدء/إيقاف الإملاء الصوتي', 'Toggle Voice Dictation')}">${ICONS.mic}</button>
             </div>
         `;
-        (document.querySelector('.mobile-frame') || document.body).appendChild(ov);
+        document.body.appendChild(ov);
         ed = $('ls-ed'); ed.innerHTML = cur.html || '<p><br></p>'; $('ls-title').value = cur.title || '';
         try { document.execCommand('defaultParagraphSeparator', false, 'p'); document.execCommand('styleWithCSS', false, true) } catch (e) { }
         try { lsSyncCardHighlights(); } catch (e) { }
@@ -11960,18 +12028,35 @@
     };
     window.addEventListener('pagehide', flush);
 
-    window.lsCmd = (c, v) => ex(c, v); window.lsH = n => ex('formatBlock', '<h' + n + '>');
-    window.lsHl = i => ex('hiliteColor', i < 0 ? 'transparent' : COL[i]);
-    window.lsHr = () => ex('insertHTML', '<hr><p><br></p>');
-    window.lsTask = () => ex('insertHTML', '<ul class="ls-tasks"><li><input type="checkbox" contenteditable="false">&nbsp;</li></ul>');
-    window.lsTable = () => ex('insertHTML', '<table><tbody>' + '<tr><td><br></td><td><br></td><td><br></td></tr>'.repeat(3) + '</tbody></table><p><br></p>');
-    window.lsBlock = k => {
+    const lsCmd = (c, v) => ex(c, v);
+    window.lsCmd = lsCmd;
+    const lsH = n => ex('formatBlock', '<h' + n + '>');
+    window.lsH = lsH;
+    const lsHl = i => ex('hiliteColor', i < 0 ? 'transparent' : COL[i]);
+    window.lsHl = lsHl;
+    const lsHr = () => ex('insertHTML', '<hr><p><br></p>');
+    window.lsHr = lsHr;
+    const lsTask = () => ex('insertHTML', '<ul class="ls-tasks"><li><input type="checkbox" contenteditable="false">&nbsp;</li></ul>');
+    window.lsTask = lsTask;
+    const lsTable = () => ex('insertHTML', '<table><tbody>' + '<tr><td><br></td><td><br></td><td><br></td></tr>'.repeat(3) + '</tbody></table><p><br></p>');
+    window.lsTable = lsTable;
+    const lsBlock = k => {
         const [ic, a, e] = BL[k]; ex('insertHTML', `<div class="ls-blk ls-${k}" data-l="${ic} ${T(a, e)}" id="ls-new"><br></div><p><br></p>`);
         const el = ed.querySelector('#ls-new'); if (el) { el.removeAttribute('id'); const r = document.createRange(); r.setStart(el, 0); r.collapse(true); const s = getSelection(); s.removeAllRanges(); s.addRange(r) }
     };
+    window.lsBlock = lsBlock;
 
-    const SL = [['h1', 'عنوان 1', 'H1', () => lsH(1)], ['h2', 'عنوان 2', 'H2', () => lsH(2)], ['h3', 'عنوان 3', 'H3', () => lsH(3)], ['ul', 'قائمة نقطية', '•', () => ex('insertUnorderedList')], ['ol', 'قائمة مرقمة', '1.', () => ex('insertOrderedList')], ['todo', 'قائمة مهام', '☑', lsTask], ['table', 'جدول', '▦', lsTable], ['hr', 'فاصل', '―', lsHr],
-    ...Object.keys(BL).map(k => [k, BL[k][1], BL[k][0], () => lsBlock(k)])];
+    const SL = [
+        ['h1', 'عنوان 1', 'H1', () => lsH(1)],
+        ['h2', 'عنوان 2', 'H2', () => lsH(2)],
+        ['h3', 'عنوان 3', 'H3', () => lsH(3)],
+        ['ul', 'قائمة نقطية', '•', () => ex('insertUnorderedList')],
+        ['ol', 'قائمة مرقمة', '1.', () => ex('insertOrderedList')],
+        ['todo', 'قائمة مهام', '☑', () => lsTask()],
+        ['table', 'جدول', '▦', () => lsTable()],
+        ['hr', 'فاصل', '―', () => lsHr()],
+        ...Object.keys(BL).map(k => [k, BL[k][1], BL[k][0], () => lsBlock(k)])
+    ];
     function curBlock() { const s = getSelection(); let n = s.rangeCount && s.anchorNode; while (n && n.parentNode !== ed) n = n.parentNode; return n && n.nodeType === 1 ? n : null }
     function clearBlock(b) { const r = document.createRange(); r.selectNodeContents(b); const s = getSelection(); s.removeAllRanges(); s.addRange(r); document.execCommand('delete') }
     function hideSlash() { if ($('ls-slash')) $('ls-slash').style.display = 'none'; slashB = null }
