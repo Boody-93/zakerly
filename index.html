@@ -147,6 +147,38 @@
             display: flex;
         }
 
+        .forced-close-btn {
+            position: absolute;
+            top: 20px;
+            inset-inline-end: 20px;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1.5px solid rgba(255, 255, 255, 0.25);
+            color: inherit;
+            font-size: 1.15rem;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 20;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .forced-close-btn:hover {
+            background: rgba(239, 68, 68, 0.85);
+            color: #ffffff;
+            transform: scale(1.1);
+        }
+
+        .forced-close-btn:active {
+            transform: scale(0.92);
+        }
+
         .forced-badge {
             background: #ef4444;
             color: white;
@@ -313,6 +345,10 @@
             perspective: 1000px;
             cursor: pointer;
             margin-bottom: 15px;
+            touch-action: pan-y !important;
+            -webkit-user-select: none !important;
+            user-select: none !important;
+            will-change: transform;
         }
 
         .card {
@@ -3960,51 +3996,74 @@
                 box-shadow: none !important;
             }
         }
-        /* تنسيقات واجهة الكارت الجديد المتطورة */
+        /* تنسيقات واجهة الكارت الجديد المتطورة - فصل حقول الإدخال عن الأزرار نهائياً لمنع أي تداخل مع النص */
         .zk-input-group {
+            display: flex !important;
+            align-items: center !important;
+            background: rgba(255, 255, 255, 0.05) !important;
+            border: 1.5px solid rgba(255, 255, 255, 0.12) !important;
+            border-radius: 14px !important;
+            padding: 3px 8px !important;
+            margin-bottom: 8px !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+            transition: all 0.2s ease !important;
             position: relative;
-            margin-bottom: 8px;
-            width: 100%;
+        }
+
+        .zk-input-group:focus-within {
+            border-color: #6366f1 !important;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.22) !important;
         }
 
         .zk-input-group .modern-input {
+            flex: 1 !important;
+            min-width: 0 !important;
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            outline: none !important;
+            padding: 8px 10px !important;
             margin-bottom: 0 !important;
-            padding-inline-end: 78px !important;
+            font-size: 0.92rem !important;
+            color: inherit !important;
+            line-height: 1.4 !important;
         }
 
         .zk-input-actions {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            inset-inline-end: 8px;
-            display: flex;
-            align-items: center;
-            gap: 4px;
+            position: static !important;
+            transform: none !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 5px !important;
+            flex-shrink: 0 !important;
+            margin-inline-start: 6px !important;
             z-index: 2;
         }
 
         .zk-field-btn {
-            width: 32px;
-            height: 32px;
-            border-radius: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            background: rgba(255, 255, 255, 0.06);
-            color: var(--ink, #fff);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            width: 34px !important;
+            height: 34px !important;
+            border-radius: 10px !important;
+            border: 1px solid rgba(255, 255, 255, 0.14) !important;
+            background: rgba(255, 255, 255, 0.06) !important;
+            color: var(--ink, #fff) !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            cursor: pointer !important;
+            flex-shrink: 0 !important;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
         }
 
         .zk-field-btn:hover {
-            background: rgba(99, 102, 241, 0.25);
-            border-color: rgba(99, 102, 241, 0.5);
-            transform: scale(1.08);
+            background: rgba(99, 102, 241, 0.3) !important;
+            border-color: rgba(99, 102, 241, 0.6) !important;
+            transform: scale(1.08) !important;
         }
 
         .zk-field-btn:active {
-            transform: scale(0.92);
+            transform: scale(0.92) !important;
         }
 
         .zk-field-btn.recording {
@@ -4825,10 +4884,17 @@
             padding: 7px !important
         }
 
-        .modern-input {
+        .modern-input:not(.zk-input-group .modern-input) {
             padding: 9px 12px !important;
             font-size: .82rem !important;
             margin-bottom: 7px !important
+        }
+
+        .zk-input-group .modern-input {
+            padding: 8px 10px !important;
+            margin-bottom: 0 !important;
+            border: none !important;
+            background: transparent !important;
         }
 
         .btn-modal-action {
@@ -4911,9 +4977,10 @@
             </div>
         </div>
 
-        <!-- 3. البوب أب الإجباري بملء الشاشة + اختبار الكتابة -->
+        <!-- 3. بوب أب مراجعة الكروت واختبار الكتابة -->
         <div class="forced-popup" id="forced-popup">
-            <div class="forced-badge">🚨 اختبار إجباري (ممنوع الهروب!)</div>
+            <button type="button" class="forced-close-btn" onclick="cancelForcedPopup()" title="إغلاق وتخطي الاختبار">✕</button>
+            <div class="forced-badge">⚡ مراجعة سريعة للكارت</div>
 
             <div class="forced-card">
                 <div style="font-size: 0.85rem; color: #64748b; margin-bottom: 5px;">ما معنى هذه الكلمة؟</div>
@@ -4924,12 +4991,14 @@
                 <button class="btn-check" id="btn-check-answer" onclick="checkForcedAnswer()">تحقق من إجابتي ✍️</button>
 
                 <div id="forced-helper-btns" style="display: flex; gap: 8px; margin-top: 8px;">
-                    <button onclick="revealForcedAnswer()"
+                    <button type="button" onclick="revealForcedAnswer()"
                         style="flex: 1; padding: 8px; background: #f59e0b; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.8rem;">نسيت
                         الإجابة 💡</button>
-                    <button onclick="snoozeForcedCard()"
+                    <button type="button" onclick="snoozeForcedCard()"
                         style="flex: 1; padding: 8px; background: #64748b; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.8rem;">تأجيل
                         5 دقايق 💤</button>
+                    <button type="button" onclick="cancelForcedPopup()"
+                        style="flex: 0.8; padding: 8px; background: rgba(239,68,68,0.12); color: #ef4444; border: 1px solid rgba(239,68,68,0.25); border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 0.8rem;">تخطي ✕</button>
                 </div>
 
                 <div class="feedback-box" id="forced-feedback"></div>
@@ -5237,12 +5306,28 @@
     </div>
 
     <script>
-        // مكتبة الكلمات والجمل الجاهزة لأشهر المواضيع بكل اللغات
+        // دالة تنظيف ومطابقة الإجابات الذكية (تجاهل الإيموجي وعلامات الترقيم والتشكيل والهمزات تماماً)
+        function cleanAnswer(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/\s*\([^)]*\)/g, '')
+                .replace(/[\p{Extended_Pictographic}\uFE0F\u200D]/gu, '')
+                .replace(/[.,?!،؟:;\-_"'/\\()[\]{}]/g, ' ')
+                .replace(/[\u064B-\u065F\u0670]/g, '')
+                .replace(/[إأآا]/g, 'ا')
+                .replace(/ة/g, 'ه')
+                .replace(/ى/g, 'ي')
+                .trim()
+                .toLowerCase()
+                .replace(/\s+/g, ' ');
+        }
+
+        // مكتبة الكلمات والجمل الجاهزة لأشهر المواضيع بكل اللغات (خالية تماماً من الإيموجي)
         const AR_MEANINGS = {
-            basics: ['مرحباً 👋', 'صباح الخير ☀️', 'شكراً جزيلاً 🙏', 'من فضلك ✨', 'كيف حالك؟ 😊', 'مع السلامة 👋'],
-            numbers: ['واحد (1)', 'اثنان (2)', 'ثلاثة (3)', 'أربعة (4)', 'خمسة (5)', 'عشرة (10)'],
-            food: ['ماء 💧', 'خبز 🍞', 'تفاحة 🍎', 'قهوة ☕', 'حليب 🥛', 'مطعم 🍽️'],
-            travel: ['مطار ✈️', 'فندق 🏨', 'سيارة 🚗', 'قطار 🚆', 'تذكرة 🎫', 'مساعدة 🆘']
+            basics: ['مرحباً', 'صباح الخير', 'شكراً جزيلاً', 'من فضلك', 'كيف حالك؟', 'مع السلامة'],
+            numbers: ['واحد', 'اثنان', 'ثلاثة', 'أربعة', 'خمسة', 'عشرة'],
+            food: ['ماء', 'خبز', 'تفاحة', 'قهوة', 'حليب', 'مطعم'],
+            travel: ['مطار', 'فندق', 'سيارة', 'قطار', 'تذكرة', 'مساعدة']
         };
 
         const LANG_PACKS = {
@@ -5405,12 +5490,13 @@
                 addTopicLbl: '📌 إضافة موضوع جديد داخل: ',
                 addTopicPh: 'اسم الموضوع الجديد (مثل: 🎨 الألوان)...',
                 homeBtnBottom: '📱 زرار الهوم (اقفل التطبيق وجرب الإشعار)',
-                forcedBadge: '🚨 اختبار إجباري (ممنوع الهروب!)',
+                forcedBadge: '⚡ مراجعة سريعة (يمكنك التخطي)',
                 forcedQuestion: 'ما معنى هذه الكلمة؟',
                 forcedInputPh: 'اكتب الإجابة هنا الأول...',
                 forcedCheckBtn: 'تحقق من إجابتي ✍️',
                 forcedForgotBtn: 'نسيت الإجابة 💡',
                 forcedSnoozeBtn: 'تأجيل 5 دقايق 💤',
+                forcedSkipBtn: 'تخطي ✕',
                 notifTitle: 'مراجعة إجبارية الآن!',
                 notifBody: 'حان موعد مراجعة الكلمة الصعبة: ',
                 reverseBtnTitle: 'وضع المذاكرة المعكوس ⇄',
@@ -5473,12 +5559,13 @@
                 addTopicLbl: '📌 Add new topic inside: ',
                 addTopicPh: 'New topic name (e.g. 🎨 Colors)...',
                 homeBtnBottom: '📱 Home Button (Close App & Test Alert)',
-                forcedBadge: '🚨 Mandatory Quiz (No Escape!)',
+                forcedBadge: '⚡ Quick Review (Optional)',
                 forcedQuestion: 'What is the meaning of this word?',
                 forcedInputPh: 'Type the answer here first...',
                 forcedCheckBtn: 'Check My Answer ✍️',
                 forcedForgotBtn: 'Forgot Answer 💡',
                 forcedSnoozeBtn: 'Snooze 5 Mins 💤',
+                forcedSkipBtn: 'Skip ✕',
                 notifTitle: 'Mandatory Review Now!',
                 notifBody: 'Time to review hard word: ',
                 reverseBtnTitle: 'Reverse Study Mode ⇄',
@@ -5592,9 +5679,10 @@
             document.getElementById('forced-input').placeholder = t('forcedInputPh');
             document.getElementById('btn-check-answer').innerText = t('forcedCheckBtn');
             const helperBtns = document.querySelectorAll('#forced-helper-btns button');
-            if (helperBtns.length === 2) {
+            if (helperBtns.length >= 2) {
                 helperBtns[0].innerText = t('forcedForgotBtn');
                 helperBtns[1].innerText = t('forcedSnoozeBtn');
+                if (helperBtns[2]) helperBtns[2].innerText = t('forcedSkipBtn');
             }
             const homeHint = document.getElementById('home-hint-text');
             if (homeHint) homeHint.innerText = (appLang === 'ar')
@@ -5965,6 +6053,7 @@
         window.addEventListener('keydown', (e) => {
             if (e.key !== 'Escape') return;
             if (fabDialOpen) closeFabDial();
+            else if (document.getElementById('forced-popup')?.classList.contains('active')) cancelForcedPopup();
             else if (document.getElementById('add-modal').classList.contains('active')) closeAddModal();
         });
         document.querySelectorAll('.zk-tab').forEach(b => b.addEventListener('click', closeFabDial));
@@ -6837,14 +6926,28 @@
         let currentCardIndex = 0;
         let cardAnimClass = '';
         let cardSwipeStartX = 0;
+        let cardSwipeStartY = 0;
         let cardSwipeDeltaX = 0;
+        let cardSwipeStartTime = 0;
         let isSwipingCard = false;
         let lastDueCount = -1;
+
+        function resetCardSwipeState() {
+            isSwipingCard = false;
+            cardSwipeDeltaX = 0;
+            const container = document.getElementById('card-swipe-box');
+            if (container) {
+                container.style.transition = 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s';
+                container.style.transform = '';
+                container.style.opacity = '';
+                container.style.boxShadow = '';
+            }
+        }
 
         function changeCard(step, event) {
             if (event) event.stopPropagation();
             const dueCards = getDueCards();
-            if (dueCards.length <= 1) return;
+            if (dueCards.length === 0) return;
             isCardFlipped = false;
             currentCardIndex = (currentCardIndex + step + dueCards.length) % dueCards.length;
             cardAnimClass = step > 0 ? 'anim-next' : 'anim-prev';
@@ -6942,22 +7045,37 @@
         function startCardSwipe(e) {
             if (e.target.closest('button') || e.target.closest('.audio-unified-pill') || e.target.closest('.blur-reveal') || e.target.closest('.card-header-btn')) return;
             cardSwipeStartX = e.clientX;
+            cardSwipeStartY = e.clientY;
             cardSwipeDeltaX = 0;
+            cardSwipeStartTime = Date.now();
             isSwipingCard = true;
+            try {
+                if (e.currentTarget && typeof e.currentTarget.setPointerCapture === 'function') {
+                    e.currentTarget.setPointerCapture(e.pointerId);
+                }
+            } catch (err) { }
         }
 
         window.addEventListener('pointermove', (e) => {
             if (!isSwipingCard) return;
             const container = document.getElementById('card-swipe-box');
             if (!container) return;
+            
             cardSwipeDeltaX = e.clientX - cardSwipeStartX;
-            if (Math.abs(cardSwipeDeltaX) > 8) {
+            const deltaY = e.clientY - (cardSwipeStartY || e.clientY);
+
+            // لو السحب عمودي لتمرير الصفحة، لا نحرك الكارت أفقياً
+            if (Math.abs(deltaY) > Math.abs(cardSwipeDeltaX) * 1.5 && Math.abs(cardSwipeDeltaX) < 15) {
+                return;
+            }
+
+            if (Math.abs(cardSwipeDeltaX) > 4) {
                 container.style.transition = 'none';
-                container.style.transform = `translateX(${cardSwipeDeltaX}px) rotate(${cardSwipeDeltaX * 0.04}deg)`;
+                container.style.transform = `translateX(${cardSwipeDeltaX}px) rotate(${cardSwipeDeltaX * 0.035}deg)`;
                 if (cardSwipeDeltaX > 25) {
-                    container.style.boxShadow = '0 0 35px rgba(16, 185, 129, 0.5)';
+                    container.style.boxShadow = '0 0 35px rgba(16, 185, 129, 0.45)';
                 } else if (cardSwipeDeltaX < -25) {
-                    container.style.boxShadow = '0 0 35px rgba(239, 68, 68, 0.5)';
+                    container.style.boxShadow = '0 0 35px rgba(239, 68, 68, 0.45)';
                 } else {
                     container.style.boxShadow = '';
                 }
@@ -6966,22 +7084,47 @@
 
         window.addEventListener('pointerup', () => {
             if (!isSwipingCard) return;
-            isSwipingCard = false;
+            const duration = Date.now() - (cardSwipeStartTime || 0);
+            const delta = cardSwipeDeltaX;
             const container = document.getElementById('card-swipe-box');
+
+            isSwipingCard = false;
+            cardSwipeDeltaX = 0;
+
             if (!container) return;
 
-            container.style.boxShadow = '';
-            if (Math.abs(cardSwipeDeltaX) > 65) {
-                const step = cardSwipeDeltaX < 0 ? 1 : -1;
-                changeCard(step);
-            } else {
-                container.style.transition = 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)';
+            // نقرة سريعة وخفيفة = قلب الكارت فوراً
+            if (Math.abs(delta) < 10 && duration < 350) {
                 container.style.transform = '';
-                if (Math.abs(cardSwipeDeltaX) < 8) {
-                    flipCard();
-                }
+                container.style.boxShadow = '';
+                flipCard();
+                return;
             }
-            cardSwipeDeltaX = 0;
+
+            // سحب أفقي كافي لتقليب الكارت التالي
+            if (Math.abs(delta) > 55) {
+                const step = delta < 0 ? 1 : -1;
+                container.style.transition = 'transform 0.16s ease-out, opacity 0.16s ease-out';
+                container.style.transform = `translateX(${delta > 0 ? 120 : -120}%) rotate(${delta * 0.05}deg)`;
+                container.style.opacity = '0';
+                
+                setTimeout(() => {
+                    container.style.transition = 'none';
+                    container.style.transform = '';
+                    container.style.opacity = '';
+                    container.style.boxShadow = '';
+                    changeCard(step);
+                }, 160);
+            } else {
+                // رجوع ناعم للمنتصف دون لاج
+                container.style.transition = 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s';
+                container.style.transform = '';
+                container.style.boxShadow = '';
+            }
+        });
+
+        window.addEventListener('pointercancel', () => {
+            resetCardSwipeState();
         });
 
         function deleteCurrentCard(event) {
@@ -8746,7 +8889,7 @@
 
             typeState.answered = true;
             const tCard = typeState.list[typeState.index];
-            const isCorrect = userVal.toLowerCase() === tCard.front.trim().toLowerCase();
+            const isCorrect = cleanAnswer(userVal) === cleanAnswer(tCard.front);
             const isAr = (appLang === 'ar');
 
             feedback.style.display = 'block';
@@ -9371,23 +9514,39 @@
         function revealForcedAnswer() {
             const feedback = document.getElementById('forced-feedback');
             const input = document.getElementById('forced-input');
+            const displayAns = cleanAnswer(currentCard.back) || currentCard.back;
             feedback.style.display = 'block';
             feedback.style.background = '#fef3c7';
             feedback.style.color = '#92400e';
             feedback.innerHTML = appLang === 'ar'
-                ? `💡 الإجابة هي: <strong>${currentCard.back}</strong><br><span style="font-size:0.8rem">اكتبها بإيدك في المستطيل فوق ودوس تحقق عشان تثبت في دماغك! ✍️</span>`
-                : `💡 Answer is: <strong>${currentCard.back}</strong><br><span style="font-size:0.8rem">Type it manually in the box above and click Check to unlock! ✍️</span>`;
+                ? `💡 الإجابة هي: <strong>${displayAns}</strong><br><span style="font-size:0.8rem">اكتبها بإيدك في المستطيل فوق ودوس تحقق عشان تثبت في دماغك! ✍️</span>`
+                : `💡 Answer is: <strong>${displayAns}</strong><br><span style="font-size:0.8rem">Type it manually in the box above and click Check to unlock! ✍️</span>`;
             input.value = '';
-            input.placeholder = currentCard.back;
+            input.placeholder = displayAns;
             input.focus();
         }
 
         function snoozeForcedCard() {
-            currentCard.nextReview = Date.now() + (5 * 60 * 1000);
-            alreadyNotifiedId = null;
-            document.getElementById('mobile-notif').classList.remove('show');
-            document.getElementById('forced-popup').classList.remove('active');
+            if (currentCard) {
+                currentCard.nextReview = Date.now() + (5 * 60 * 1000);
+                alreadyNotifiedId = null;
+            }
+            document.getElementById('mobile-notif')?.classList.remove('show');
+            document.getElementById('forced-popup')?.classList.remove('active');
             saveCards();
+            updateUI();
+        }
+
+        function cancelForcedPopup() {
+            if (currentCard) {
+                // تأجيل الكارت نصف ساعة حتى لا يعود ويزعج المستخدم فوراً
+                currentCard.nextReview = Date.now() + (30 * 60 * 1000);
+                alreadyNotifiedId = null;
+            }
+            document.getElementById('mobile-notif')?.classList.remove('show');
+            document.getElementById('forced-popup')?.classList.remove('active');
+            saveCards();
+            updateUI();
         }
 
         function checkForcedAnswer() {
@@ -9401,12 +9560,18 @@
             const feedback = document.getElementById('forced-feedback');
             feedback.style.display = 'block';
 
-            if (userInput.toLowerCase() === currentCard.back.toLowerCase()) {
+            const userClean = cleanAnswer(userInput);
+            const targetClean = cleanAnswer(currentCard.back);
+            const displayAns = targetClean || currentCard.back;
+            const isMatch = (userClean === targetClean) || 
+                            (targetClean.length > 2 && userClean.length > 2 && (targetClean.includes(userClean) || userClean.includes(targetClean)));
+
+            if (isMatch) {
                 feedback.style.background = '#dcfce7';
                 feedback.style.color = '#166534';
                 feedback.innerHTML = appLang === 'ar'
-                    ? `✅ عاش جداً! إجابة صحيحة: (${currentCard.back})`
-                    : `✅ Great job! Correct answer: (${currentCard.back})`;
+                    ? `✅ عاش جداً! إجابة صحيحة: (${displayAns})`
+                    : `✅ Great job! Correct answer: (${displayAns})`;
                 input.disabled = true;
                 document.getElementById('btn-check-answer').style.display = 'none';
                 document.getElementById('forced-helper-btns').style.display = 'none';
@@ -9415,10 +9580,10 @@
                 feedback.style.background = '#fee2e2';
                 feedback.style.color = '#991b1b';
                 feedback.innerHTML = appLang === 'ar'
-                    ? `❌ إجابتك غير صحيحة.<br>الإجابة الصح هي: <strong>${currentCard.back}</strong><br><span style="font-size:0.8rem">اكتب الإجابة الصح دلوقتي في المستطيل عشان تفتح الشاشة! ✍️</span>`
-                    : `❌ Incorrect.<br>Correct answer is: <strong>${currentCard.back}</strong><br><span style="font-size:0.8rem">Type the correct answer in the box to unlock! ✍️</span>`;
+                    ? `❌ إجابتك غير صحيحة.<br>الإجابة الصح هي: <strong>${displayAns}</strong><br><span style="font-size:0.8rem">اكتب الإجابة في المستطيل عشان تفتح الشاشة! ✍️</span>`
+                    : `❌ Incorrect.<br>Correct answer is: <strong>${displayAns}</strong><br><span style="font-size:0.8rem">Type the correct answer in the box to unlock! ✍️</span>`;
                 input.value = '';
-                input.placeholder = currentCard.back;
+                input.placeholder = displayAns;
                 input.focus();
             }
         }
