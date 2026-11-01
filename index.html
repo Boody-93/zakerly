@@ -10,8 +10,12 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#0f172a">
     <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
     <link rel="icon" type="image/svg+xml" href="icon.svg">
     <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="icon-192.png">
+    <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png">
+    <link rel="apple-touch-icon" sizes="512x512" href="icon-512.png">
     <title>Zakerly | تطبيق المذاكرة الذكي</title>
     <link
         href="https://fonts.googleapis.com/css2?family=Alexandria:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Cairo:wght@400;600;700;800&display=swap"
@@ -7004,9 +7008,9 @@
                 if (studyArea) studyArea.scrollTop = 0;
             }
 
-            // 1. فحص الطوارئ لأي كارت صعب حان موعده
+            // 1. فحص الطوارئ والجدولة لأي كارت حان موعده
             const now = Date.now();
-            const urgentCard = cards.find(c => c.isHard && c.nextReview <= now);
+            const urgentCard = cards.find(c => (c.isHard || c.plan || c.isScheduled) && c.nextReview <= now && !c.done);
 
             if (urgentCard) {
                 currentCard = urgentCard;
@@ -9301,13 +9305,31 @@
 
         function triggerUrgentAlert(card) {
             playAlarmSound();
-            document.getElementById('notif-text').innerText = `${t('notifBody')} "${card.front}"`;
-            document.getElementById('mobile-notif').classList.add('show');
+            const notifText = document.getElementById('notif-text');
+            if (notifText) notifText.innerText = `${t('notifBody')} "${card.front}"`;
+            const mobNotif = document.getElementById('mobile-notif');
+            if (mobNotif) mobNotif.classList.add('show');
 
-            if ("Notification" in window && Notification.permission === "granted") {
-                new Notification(t('notifTitle'), {
-                    body: `${t('notifBody')} ${card.front}`
-                });
+            const title = t('notifTitle') || '⏰ حان وقت مراجعة كارت!';
+            const body = `${t('notifBody') || 'حان موعد مراجعة:'} ${card.front}`;
+
+            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                navigator.serviceWorker.ready.then(reg => {
+                    reg.showNotification(title, {
+                        body: body,
+                        icon: './icon-192.png',
+                        badge: './icon-192.png',
+                        vibrate: [200, 100, 200],
+                        data: { cardId: card.id }
+                    });
+                }).catch(() => {});
+            } else if ("Notification" in window && Notification.permission === "granted") {
+                try {
+                    new Notification(title, {
+                        body: body,
+                        icon: './icon-192.png'
+                    });
+                } catch (e) { }
             }
         }
 
@@ -9667,6 +9689,9 @@
             };
             card.nextReview = r.first;
             card.done = false;
+            if ('Notification' in window && Notification.permission === 'default') {
+                try { Notification.requestPermission(); } catch (e) { }
+            }
             closeScheduleModal();
             saveCards();
             if (document.getElementById('manage-modal')?.classList.contains('active')) renderManageList();
@@ -10124,12 +10149,14 @@
         }
 
         setInterval(() => {
-            const cardEl = document.getElementById('flashcard');
-            if (cardEl && cardEl.classList.contains('flipped')) return;
-            const hasUrgent = cards.some(c => c.isHard && c.nextReview <= Date.now());
+            const now = Date.now();
+            const hasUrgent = cards.some(c => (c.isHard || c.plan || c.isScheduled) && c.nextReview <= now && !c.done);
             const currentDueLen = (navLevel === 'study') ? getDueCards().length : -1;
             if (hasUrgent || (navLevel === 'study' && currentDueLen !== lastDueCount)) {
-                updateUI();
+                const cardEl = document.getElementById('flashcard');
+                if (!cardEl || !cardEl.classList.contains('flipped') || hasUrgent) {
+                    updateUI();
+                }
             }
         }, 1000);
 
@@ -11894,7 +11921,12 @@
             </div>
             <!-- زر الإملاء الصوتي العائم -->
             <div class="ls-dictation-wrap">
-                <button class="ls-mic-lang-btn" id="ls-mic-lang" onclick="lsToggleDictLang(event)" title="${T('
+                <button class="ls-mic-lang-btn" id="ls-mic-lang" onclick="lsToggleDictLang(event)" title="${T('تغيير لغة المايك', 'Change voice language')}">${dictLang.startsWith('ar') ? 'AR' : 'EN'}</button>
+                <button class="ls-mic-btn" id="ls-mic-btn" onclick="lsToggleDictation()" title="${T('بدء/إيقاف الإملاء الصوتي', 'Toggle Voice Dictation')}">${ICONS.mic}</button>
+            </div>
+        `;
+        (document.querySelector('.mobile-frame') || document.body).appendChild(ov);
+        ed = $('ls-ed'); ed.innerHTML = cur.html || '<p><br></p>'; $('ls-title').value = cur.title || '';
         try { document.execCommand('defaultParagraphSeparator', false, 'p'); document.execCommand('styleWithCSS', false, true) } catch (e) { }
         try { lsSyncCardHighlights(); } catch (e) { }
         ov.addEventListener('click', () => { if (typeof lsCloseMoreMenu === 'function') lsCloseMoreMenu(); });
