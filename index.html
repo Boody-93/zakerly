@@ -10129,41 +10129,19 @@
         }
 
         function speakWordWithCallback(text, rate, onEnd) {
-            const cleanText = cleanTextForTTS(text);
-            if (!cleanText) {
-                if (onEnd) onEnd();
+            if (typeof window === 'undefined' || !window.speechSynthesis) {
+                if (onEnd) setTimeout(onEnd, 1200);
                 return;
             }
-
-            if (typeof stopAllSpeech === 'function') stopAllSpeech();
-            else if (typeof window !== 'undefined' && window.speechSynthesis) window.speechSynthesis.cancel();
-
-            const isArabic = /[\u0600-\u06FF]/.test(cleanText);
-            const subCat = (typeof getCurrentSubCat === 'function') ? getCurrentSubCat() : null;
-            const targetLang = isArabic ? 'ar' : (subCat && subCat.langCode && subCat.langCode !== 'auto' ? subCat.langCode : 'en');
-            const bestVoice = (typeof getBestVoiceForLang === 'function') ? getBestVoiceForLang(targetLang) : null;
-
-            if (bestVoice && typeof isHighQualityVoice === 'function' && isHighQualityVoice(bestVoice) && 'speechSynthesis' in window && typeof playSpeechChunks === 'function') {
-                const chunks = chunkTextForSpeech(cleanText, 160);
-                playSpeechChunks(chunks, targetLang, bestVoice, rate || 1.0, onEnd);
-                return;
-            }
-
-            if (typeof fallbackToHighQualityAudio === 'function') {
-                fallbackToHighQualityAudio(cleanText, targetLang, rate || 1.0, onEnd);
-                return;
-            }
-
-            if (typeof window !== 'undefined' && window.speechSynthesis) {
-                const u = new SpeechSynthesisUtterance(cleanText);
-                u.lang = isArabic ? 'ar-SA' : 'en-US';
-                u.rate = rate || 1.0;
-                u.onend = () => { if (onEnd) onEnd(); };
-                u.onerror = () => { if (onEnd) onEnd(); };
-                window.speechSynthesis.speak(u);
-            } else if (onEnd) {
-                setTimeout(onEnd, 1200);
-            }
+            window.speechSynthesis.cancel();
+            const cleanText = (text || '').replace(/\[\.\.\.\]/g, 'فراغ').replace(/<[^>]*>/g, '');
+            const u = new SpeechSynthesisUtterance(cleanText);
+            const isAr = /[\u0600-\u06FF]/.test(cleanText);
+            u.lang = isAr ? 'ar-SA' : 'en-US';
+            u.rate = rate || 1.0;
+            u.onend = () => { if (onEnd) onEnd(); };
+            u.onerror = () => { if (onEnd) onEnd(); };
+            window.speechSynthesis.speak(u);
         }
 
         // ====== 4. وضع محاكي ليلة الامتحان والمراجعة المكثفة (Exam Simulator) ======
@@ -11016,282 +10994,46 @@
             }
         }
 
-        // =========================================================================
-        // محرك أصوات مايكروسوفت الذكية العصبية (Microsoft Edge Neural Voices Engine)
-        // =========================================================================
         let activeTTSAudio = null;
-        let zkSpeechVoices = [];
-        let zkVoicesLoaded = false;
-        let isSpeakingQueue = false;
-
         const LANG_LOCALES = {
             ar: 'ar-SA', en: 'en-US', de: 'de-DE', fr: 'fr-FR',
             es: 'es-ES', it: 'it-IT', tr: 'tr-TR', ru: 'ru-RU',
             nl: 'nl-NL', pt: 'pt-BR', zh: 'zh-CN', ja: 'ja-JP', ko: 'ko-KR'
         };
 
-        // أسماء أصوات مايكروسوفت العصبية الطبيعية المعتمدة دولياً
-        const EDGE_NEURAL_VOICES_REGISTRY = {
-            en: ['Jenny', 'Guy', 'Aria', 'Christopher', 'Eric', 'Michelle', 'Roger', 'Steffan', 'Sonia', 'Ryan', 'Libby'],
-            tr: ['Ahmet', 'Emel'],
-            de: ['Katja', 'Conrad', 'Amala', 'Killian'],
-            fr: ['Denise', 'Henri', 'Eloise'],
-            es: ['Elvira', 'Alvaro'],
-            ar: ['Salma', 'Shakir', 'Zariyah', 'Hamed'],
-            it: ['Elsa', 'Diego'],
-            ru: ['Svetlana', 'Dmitry'],
-            ja: ['Nanami', 'Keita'],
-            ko: ['SunHi', 'InJoon'],
-            zh: ['Xiaoxiao', 'Yunxi'],
-            nl: ['Colette', 'Fenna'],
-            pt: ['Francisca', 'Antonio']
-        };
-
-        // ذاكرة تخزين مؤقت للصوتيات لضمان السرعة الفائقة والعمل أوفلاين
-        const zkAudioCache = new Map();
-
-        function refreshAvailableVoices() {
-            if (typeof window === 'undefined' || !('speechSynthesis' in window)) return [];
-            try {
-                const list = window.speechSynthesis.getVoices();
-                if (list && list.length > 0) {
-                    zkSpeechVoices = list;
-                    zkVoicesLoaded = true;
-                }
-            } catch (e) { }
-            return zkSpeechVoices;
-        }
-
-        // تهيئة فورية ومستمرة لالتقاط أصوات مايكروسوفت فور تحميل المتصفح لها
-        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-            refreshAvailableVoices();
-            window.speechSynthesis.onvoiceschanged = () => {
-                refreshAvailableVoices();
-            };
-            let retryCount = 0;
-            const voiceTimer = setInterval(() => {
-                refreshAvailableVoices();
-                retryCount++;
-                if (zkVoicesLoaded || retryCount > 10) clearInterval(voiceTimer);
-            }, 250);
+        // تحميل الأصوات الطبيعية في المتصفح مسبقاً
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.getVoices();
+            window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
         }
 
         function cleanTextForTTS(rawText) {
             return String(rawText || '')
-                .replace(/<[^>]*>/g, ' ') // إزالة وسوم HTML
-                .replace(/\[\.\.\.\]/g, ' ') // إزالة نقاط الفراغ
-                .replace(/\[.*?\]/g, ' ') // إزالة الأقواس المربعة
+                .replace(/<[^>]*>/g, ' ')
+                .replace(/\[\.\.\.\]/g, ' ')
                 .replace(/\([^)]*\)/g, '') // حذف أي توضيح بين قوسين مثل (1)
-                .replace(/[^\p{L}\p{M}\p{N}\s.,?!'’؟،-]/gu, '') // حذف الإيموجيز والرموز
+                .replace(/[^\p{L}\p{M}\p{N}\s.,?!'’؟،-]/gu, '') // حذف كل الإيموجيز والرموز تماماً
                 .replace(/\s+/g, ' ')
                 .trim();
         }
 
-        function chunkTextForSpeech(text, maxLen = 160) {
-            if (!text || text.length <= maxLen) return [text];
-            const sentences = text.match(/[^.!?،؟;\n]+[.!?،؟;\n]+|[^.!?،؟;\n]+/g) || [text];
-            const chunks = [];
-            let current = '';
-
-            for (const s of sentences) {
-                const trimmed = s.trim();
-                if (!trimmed) continue;
-                if ((current + ' ' + trimmed).trim().length <= maxLen) {
-                    current = (current ? current + ' ' + trimmed : trimmed);
-                } else {
-                    if (current) chunks.push(current);
-                    if (trimmed.length > maxLen) {
-                        const words = trimmed.split(/\s+/);
-                        let sub = '';
-                        for (const w of words) {
-                            if ((sub + ' ' + w).trim().length <= maxLen) {
-                                sub = (sub ? sub + ' ' + w : w);
-                            } else {
-                                if (sub) chunks.push(sub);
-                                sub = w;
-                            }
-                        }
-                        if (sub) current = sub;
-                        else current = '';
-                    } else {
-                        current = trimmed;
-                    }
-                }
-            }
-            if (current) chunks.push(current);
-            return chunks.length > 0 ? chunks : [text];
-        }
-
-        function getBestVoiceForLang(langCode) {
-            const voices = refreshAvailableVoices();
-            if (!voices || voices.length === 0) return null;
-
-            const targetLang = (langCode || 'en').toLowerCase().split(/[-_]/)[0];
-            const matching = voices.filter(v => {
-                const vl = (v.lang || '').toLowerCase().replace('_', '-');
-                return vl.startsWith(targetLang);
-            });
-            if (matching.length === 0) return null;
-
-            const edgeNames = EDGE_NEURAL_VOICES_REGISTRY[targetLang] || [];
-
-            // 1. الأولوية القصوى: أصوات Microsoft Edge Online Natural
-            const msEdgeNatural = matching.find(v => {
-                const n = v.name || '';
-                const isNatural = n.includes('Natural') || n.includes('Online');
-                const isMs = n.includes('Microsoft') || n.includes('Edge');
-                const hasEdgeName = edgeNames.some(name => n.includes(name));
-                return (isNatural && isMs) || hasEdgeName;
-            });
-            if (msEdgeNatural) return msEdgeNatural;
-
-            // 2. أي صوت طبيعي / عصبي آخر في المتصفح
-            const anyNatural = matching.find(v => {
-                const n = v.name || '';
-                return n.includes('Natural') || n.includes('Online') || n.includes('Neural');
-            });
-            if (anyNatural) return anyNatural;
-
-            // 3. أصوات Google و Apple الحديثة عالية الجودة
-            const premiumVoices = matching.find(v => {
-                const n = v.name || '';
-                return n.includes('Google') || n.includes('Premium') || n.includes('Enhanced') || n.includes('Siri');
-            });
-            if (premiumVoices) return premiumVoices;
-
-            // 4. الصوت الافتراضي للنظام
-            return matching.find(v => v.default) || matching[0];
-        }
-
-        function isHighQualityVoice(voice) {
-            if (!voice) return false;
-            const name = (voice.name || '').toLowerCase();
-            // مؤشرات الأصوات العصبية والطبيعية عالية الدقة
-            if (name.includes('natural') || name.includes('online') || name.includes('neural')) return true;
-            if (name.includes('google') || name.includes('premium') || name.includes('enhanced') || name.includes('siri')) return true;
-            const allEdgeNames = Object.values(EDGE_NEURAL_VOICES_REGISTRY).flat().map(n => n.toLowerCase());
-            if (allEdgeNames.some(edgeName => name.includes(edgeName))) return true;
-            if (voice.localService === false) return true;
-            return false;
-        }
-
-        function stopAllSpeech() {
-            if (activeTTSAudio) {
-                try { activeTTSAudio.pause(); } catch (e) { }
-                activeTTSAudio = null;
-            }
-            if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-                try { window.speechSynthesis.cancel(); } catch (e) { }
-            }
-            isSpeakingQueue = false;
-        }
-
-        function playSpeechChunks(chunks, langCode, voice, rate = 1.0, onEndCallback = null) {
-            stopAllSpeech();
-            if (!chunks || chunks.length === 0) {
-                if (onEndCallback) onEndCallback();
-                return;
-            }
+        function speakWithNaturalVoice(cleanText, langCode, rate = 0.92) {
+            if (!('speechSynthesis' in window)) return;
+            window.speechSynthesis.cancel();
 
             const locale = LANG_LOCALES[langCode] || langCode;
-            let chunkIndex = 0;
-            isSpeakingQueue = true;
+            const utterance = new SpeechSynthesisUtterance(cleanText);
+            utterance.lang = locale;
+            utterance.rate = rate;
 
-            function playNext() {
-                if (!isSpeakingQueue || chunkIndex >= chunks.length) {
-                    isSpeakingQueue = false;
-                    if (onEndCallback) onEndCallback();
-                    return;
-                }
+            const voices = window.speechSynthesis.getVoices();
+            const langVoices = voices.filter(v => v.lang.toLowerCase().startsWith(langCode.toLowerCase()));
+            const bestVoice = langVoices.find(v => v.name.includes('Natural') || v.name.includes('Online'))
+                || langVoices.find(v => v.name.includes('Google'))
+                || langVoices[0];
 
-                const textChunk = chunks[chunkIndex++];
-                const u = new SpeechSynthesisUtterance(textChunk);
-                u.lang = locale;
-                u.rate = (rate === 1.0) ? 0.95 : rate;
-                u.pitch = 1.0;
-                if (voice) u.voice = voice;
-
-                u.onend = () => {
-                    playNext();
-                };
-                u.onerror = () => {
-                    playNext();
-                };
-
-                window.speechSynthesis.speak(u);
-            }
-
-            playNext();
-        }
-
-        function fallbackToHighQualityAudio(cleanText, targetLang, rate = 1.0, onEndCallback = null) {
-            const chunks = chunkTextForSpeech(cleanText, 160);
-            if (!chunks || chunks.length === 0) {
-                if (onEndCallback) onEndCallback();
-                return;
-            }
-
-            let chunkIdx = 0;
-            function playNextChunk() {
-                if (chunkIdx >= chunks.length) {
-                    activeTTSAudio = null;
-                    if (onEndCallback) onEndCallback();
-                    return;
-                }
-
-                const currentChunk = chunks[chunkIdx++];
-                const cacheKey = `${targetLang}_${rate}_${currentChunk}`;
-
-                if (zkAudioCache.has(cacheKey)) {
-                    const cachedAudio = zkAudioCache.get(cacheKey);
-                    try {
-                        cachedAudio.currentTime = 0;
-                        cachedAudio.playbackRate = rate;
-                        activeTTSAudio = cachedAudio;
-                        cachedAudio.onended = () => playNextChunk();
-                        cachedAudio.onerror = () => playNextChunk();
-                        cachedAudio.play().catch(() => playNextChunk());
-                        return;
-                    } catch (e) { }
-                }
-
-                const url = `https://translate.google.com/translate_tts?client=gtx&ie=UTF-8&tl=${encodeURIComponent(targetLang)}&q=${encodeURIComponent(currentChunk)}`;
-                const audio = new Audio(url);
-                audio.referrerPolicy = "no-referrer";
-                audio.playbackRate = rate;
-                activeTTSAudio = audio;
-
-                audio.onended = () => {
-                    playNextChunk();
-                };
-                audio.onerror = () => {
-                    if ('speechSynthesis' in window) {
-                        const u = new SpeechSynthesisUtterance(currentChunk);
-                        u.lang = LANG_LOCALES[targetLang] || targetLang;
-                        u.rate = (rate === 1.0) ? 0.95 : rate;
-                        u.onend = u.onerror = () => playNextChunk();
-                        window.speechSynthesis.speak(u);
-                    } else {
-                        playNextChunk();
-                    }
-                };
-
-                audio.play().then(() => {
-                    zkAudioCache.set(cacheKey, audio);
-                }).catch(() => {
-                    if ('speechSynthesis' in window) {
-                        const u = new SpeechSynthesisUtterance(currentChunk);
-                        u.lang = LANG_LOCALES[targetLang] || targetLang;
-                        u.rate = (rate === 1.0) ? 0.95 : rate;
-                        u.onend = u.onerror = () => playNextChunk();
-                        window.speechSynthesis.speak(u);
-                    } else {
-                        playNextChunk();
-                    }
-                });
-            }
-
-            playNextChunk();
+            if (bestVoice) utterance.voice = bestVoice;
+            window.speechSynthesis.speak(utterance);
         }
 
         function speakCurrentCard(side, event, rate = 1.0) {
@@ -11304,36 +11046,43 @@
         }
 
         function speakWord(text, event, rate = 1.0) {
-            if (event && event.stopPropagation) event.stopPropagation();
+            if (event) event.stopPropagation();
             const cleanText = cleanTextForTTS(text);
             if (!cleanText) return;
 
-            stopAllSpeech();
+            if (activeTTSAudio) {
+                activeTTSAudio.pause();
+                activeTTSAudio = null;
+            }
+            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
 
             const isArabic = /[\u0600-\u06FF]/.test(cleanText);
-            const subCat = (typeof getCurrentSubCat === 'function') ? getCurrentSubCat() : null;
-            const targetLang = isArabic ? 'ar' : (subCat && subCat.langCode && subCat.langCode !== 'auto' ? subCat.langCode : 'en');
-            const chunks = chunkTextForSpeech(cleanText, 160);
+            const subCat = getCurrentSubCat();
+            const targetLang = isArabic ? 'ar' : (subCat.langCode && subCat.langCode !== 'auto' ? subCat.langCode : 'en');
+            const voices = ('speechSynthesis' in window) ? window.speechSynthesis.getVoices() : [];
+            const hasHighQualityBrowserVoice = voices.some(v =>
+                v.lang.toLowerCase().startsWith(targetLang.toLowerCase()) &&
+                (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Online'))
+            );
 
-            // 1. إذا كان الهاتف يحتوي على صوت عصبي/طبيعي بشري حقيقي (مثل Edge Natural أو Google Cloud)
-            const bestVoice = getBestVoiceForLang(targetLang);
-            if (bestVoice && isHighQualityVoice(bestVoice) && 'speechSynthesis' in window) {
-                playSpeechChunks(chunks, targetLang, bestVoice, rate);
-                return;
-            }
-
-            // 2. إذا لم يتوفر صوت بشري عالي الجودة في نظام الهاتف، يتم تشغيل الصوت البشري عالي النقاء مباشرة داخل التطبيق
-            fallbackToHighQualityAudio(cleanText, targetLang, rate);
-        }
-
-        // توافقية لدوال النطق الطبيعي السابقة
-        function speakWithNaturalVoice(cleanText, langCode, rate = 0.95) {
-            const bestVoice = getBestVoiceForLang(langCode);
-            const chunks = chunkTextForSpeech(cleanText, 160);
-            if (bestVoice && isHighQualityVoice(bestVoice) && 'speechSynthesis' in window) {
-                playSpeechChunks(chunks, langCode, bestVoice, rate);
+            if (targetLang === 'en') {
+                const audio = new Audio(`https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(cleanText)}&type=2`);
+                audio.referrerPolicy = "no-referrer";
+                audio.playbackRate = rate;
+                activeTTSAudio = audio;
+                audio.play().catch(() => speakWithNaturalVoice(cleanText, 'en', rate * 0.92));
+            } else if (hasHighQualityBrowserVoice) {
+                speakWithNaturalVoice(cleanText, targetLang, rate * 0.92);
             } else {
-                fallbackToHighQualityAudio(cleanText, langCode, rate);
+                const youdaoSupported = ['fr', 'de', 'es', 'it', 'ru', 'ja', 'ko', 'zh'];
+                const url = youdaoSupported.includes(targetLang)
+                    ? `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(cleanText)}&le=${targetLang}`
+                    : `https://translate.googleapis.com/translate_tts?client=tw-ob&ie=UTF-8&tl=${targetLang}&q=${encodeURIComponent(cleanText)}`;
+                const audio = new Audio(url);
+                audio.referrerPolicy = "no-referrer";
+                audio.playbackRate = rate;
+                activeTTSAudio = audio;
+                audio.play().catch(() => speakWithNaturalVoice(cleanText, targetLang, rate * 0.92));
             }
         }
 
@@ -11689,6 +11438,142 @@
             return new Date(ts).toLocaleString(ar ? 'ar-EG' : 'en-US', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
         }
 
+        function getSrsInfo(card) {
+            const isAr = (appLang === 'ar');
+            const st = srsState(card);
+            const lvl = (card.level != null) ? card.level : srsLevel(st);
+            const badgesAr = ['🌱 كلمة جديدة', '⭐ مستوى 1', '⭐⭐ مستوى 2', '⭐⭐⭐ مستوى 3', '🔥 متقنة (4)', '👑 محفورة بالذاكرة'];
+            const badgesEn = ['🌱 New Word', '⭐ Level 1', '⭐⭐ Level 2', '⭐⭐⭐ Level 3', '🔥 Mastered (4)', '👑 Memorized'];
+            const badges = isAr ? badgesAr : badgesEn;
+            let levelBadge = badges[Math.min(lvl, badges.length - 1)];
+            let hardText, goodText, easyText, hardTime, goodTime, easyTime;
+            if (srsPlanActive(card)) {
+                const p = card.plan;
+                levelBadge = (isAr ? `⏰ جدولة مخصصة · متبقي ${p.left}` : `⏰ Custom · ${p.left} left`);
+                if (p.left > 1) {
+                    hardTime = goodTime = easyTime = p.every;
+                    hardText = goodText = easyText = srsFmt(p.every);
+                } else if (p.after === 'stop') {
+                    hardTime = goodTime = easyTime = SRS_FAR;
+                    hardText = goodText = easyText = (isAr ? 'إنهاء ✔️' : 'Finish ✔️');
+                }
+            }
+            if (hardText === undefined) {
+                const h = srsNext(card, 'hard'), g = srsNext(card, 'good'), e = srsNext(card, 'easy');
+                hardText = srsFmt(h.time); hardTime = h.time;
+                goodText = srsFmt(g.time); goodTime = g.time;
+                easyText = srsFmt(e.time); easyTime = e.time;
+            }
+            return { levelBadge, hardText, hardTime, goodText, goodTime, easyText, easyTime };
+        }
+
+        // ====== الجدولة اليدوية: أنا أحدد امتى الكارت يظهر وكام مرة ======
+        const SCH_UNITS = { m: SRS_MIN, h: SRS_HOUR, d: SRS_DAY, w: 7 * SRS_DAY, mo: 30 * SRS_DAY };
+        let schCardId = null;
+        function schEsc(x) { return String(x == null ? '' : x).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch])); }
+        function schLocalInput(ts) {
+            const d = new Date(ts), pad = n => String(n).padStart(2, '0');
+            return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        }
+        function schUnitOptions(sel) {
+            const ar = (appLang === 'ar');
+            const names = ar ? { m: 'دقيقة', h: 'ساعة', d: 'يوم', w: 'أسبوع', mo: 'شهر' } : { m: 'minutes', h: 'hours', d: 'days', w: 'weeks', mo: 'months' };
+            return Object.keys(SCH_UNITS).map(k => `<option value="${k}" ${k === sel ? 'selected' : ''}>${names[k]}</option>`).join('');
+        }
+
+        function openScheduleModal(cardId, ev) {
+            if (ev) ev.stopPropagation();
+            const card = cardId != null ? cards.find(c => String(c.id) === String(cardId)) : currentCard;
+            if (!card) return;
+            pushNavHistory('modal-sch');
+            schCardId = card.id;
+            const isAr = (appLang === 'ar');
+            const cfg = (card.plan && card.plan.cfg) || {};
+            const mode = cfg.mode || 'after';
+            let modal = document.getElementById('schedule-modal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.className = 'add-modal-overlay';
+                modal.id = 'schedule-modal';
+                modal.onclick = (e) => { if (e.target === modal) closeScheduleModal(); };
+                document.querySelector('.mobile-frame').appendChild(modal);
+            }
+            const fld = 'width:100%; padding:9px; border-radius:12px; font-size:0.88rem; box-sizing:border-box;';
+            const lbl = 'font-weight:800; font-size:0.82rem; margin:12px 0 6px; display:block;';
+            const chip = 'padding:5px 10px; border-radius:999px; border:1px solid rgba(148,163,184,0.5); background:transparent; color:inherit; font-size:0.74rem; font-weight:700; cursor:pointer;';
+            const chips = [['10', 'm', isAr ? '10 د' : '10m'], ['1', 'h', isAr ? 'ساعة' : '1h'], ['1', 'd', isAr ? 'يوم' : '1d'], ['3', 'd', isAr ? '3 أيام' : '3d'], ['1', 'w', isAr ? 'أسبوع' : '1w']]
+                .map(c => `<button type="button" style="${chip}" onclick="schPreset('${c[0]}','${c[1]}')">${c[2]}</button>`).join('');
+            modal.innerHTML = `
+                <div class="add-modal-box" style="max-height:90%; overflow-y:auto; direction:${isAr ? 'rtl' : 'ltr'}; text-align:${isAr ? 'right' : 'left'};">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                        <span style="font-weight:800; font-size:1rem;">⏰ ${isAr ? 'جدولة مخصصة للكارت' : 'Custom schedule'}</span>
+                        <button onclick="closeScheduleModal()" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:inherit;">✖</button>
+                    </div>
+                    <div style="font-size:0.85rem; opacity:0.8; margin-bottom:2px;">${schEsc(card.front)} — <b>${schEsc(card.back)}</b></div>
+                    <div style="font-size:0.75rem; opacity:0.7;">${isAr ? 'الظهور القادم:' : 'Next:'} ${srsWhen(card.nextReview)}</div>
+
+                    <label style="${lbl}">1) ${isAr ? 'امتى يظهر أول مرة؟' : 'When does it first appear?'}</label>
+                    <div style="display:flex; gap:14px; margin-bottom:8px; font-size:0.85rem;">
+                        <label style="display:flex; gap:5px; align-items:center;"><input type="radio" name="sch-mode" value="after" ${mode === 'after' ? 'checked' : ''} onchange="schToggle()"> ${isAr ? 'بعد مدة' : 'After a delay'}</label>
+                        <label style="display:flex; gap:5px; align-items:center;"><input type="radio" name="sch-mode" value="at" ${mode === 'at' ? 'checked' : ''} onchange="schToggle()"> ${isAr ? 'في وقت محدد' : 'At exact time'}</label>
+                    </div>
+                    <div id="sch-after-box" style="display:${mode === 'after' ? 'block' : 'none'};">
+                        <div style="display:flex; gap:8px;">
+                            <input type="number" id="sch-val" min="1" step="1" value="${cfg.val || 1}" oninput="schPreview()" style="${fld} flex:1;">
+                            <select id="sch-unit" onchange="schPreview()" style="${fld} flex:1.3;">${schUnitOptions(cfg.unit || 'd')}</select>
+                        </div>
+                        <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;">${chips}</div>
+                    </div>
+                    <div id="sch-at-box" style="display:${mode === 'at' ? 'block' : 'none'};">
+                        <input type="datetime-local" id="sch-at" value="${schLocalInput(cfg.at || (Date.now() + SRS_HOUR))}" oninput="schPreview()" style="${fld}">
+                    </div>
+
+                    <label style="${lbl}">2) ${isAr ? 'كام مرة يظهر؟' : 'How many times will it appear?'}</label>
+                    <input type="number" id="sch-times" min="1" max="99" step="1" value="${cfg.times || 1}" oninput="schPreview()" style="${fld}">
+
+                    <div id="sch-every-box" style="display:none;">
+                        <label style="${lbl}">3) ${isAr ? 'يتكرر كل قد إيه؟' : 'Repeat every'}</label>
+                        <div style="display:flex; gap:8px;">
+                            <input type="number" id="sch-ev-val" min="1" step="1" value="${cfg.evVal || 1}" oninput="schPreview()" style="${fld} flex:1;">
+                            <select id="sch-ev-unit" onchange="schPreview()" style="${fld} flex:1.3;">${schUnitOptions(cfg.evUnit || 'd')}</select>
+                        </div>
+                    </div>
+
+                    <label style="${lbl}">${isAr ? 'بعد آخر مرة:' : 'After the last time:'}</label>
+                    <select id="sch-after" onchange="schPreview()" style="${fld}">
+                        <option value="auto" ${(cfg.after || 'auto') === 'auto' ? 'selected' : ''}>${isAr ? 'يرجع للنظام التلقائي (Spaced Repetition)' : 'Back to automatic spaced repetition'}</option>
+                        <option value="stop" ${cfg.after === 'stop' ? 'selected' : ''}>${isAr ? 'يتوقف ويتعلّم كمكتمل' : 'Stop and mark as completed'}</option>
+                    </select>
+
+                    <div id="sch-preview" style="margin-top:12px; padding:10px; border-radius:12px; background:rgba(99,102,241,0.12); font-size:0.8rem; line-height:1.7;"></div>
+
+                    <div style="display:flex; gap:8px; margin-top:14px;">
+                        <button onclick="saveSchedule()" style="flex:2; background:#10b981; color:white; border:none; padding:11px; border-radius:12px; font-weight:800; cursor:pointer;">${isAr ? 'حفظ الجدولة' : 'Save schedule'}</button>
+                        <button onclick="closeScheduleModal()" style="flex:1; background:rgba(148,163,184,0.2); color:inherit; border:none; padding:11px; border-radius:12px; font-weight:700; cursor:pointer;">${isAr ? 'إلغاء' : 'Cancel'}</button>
+                    </div>
+                    ${(card.plan || card.done) ? `<button onclick="clearSchedule()" style="width:100%; margin-top:8px; background:rgba(239,68,68,0.12); color:#ef4444; border:none; padding:9px; border-radius:12px; font-weight:700; cursor:pointer;">↩️ ${isAr ? 'إلغاء الجدولة والرجوع للنظام التلقائي' : 'Remove schedule (back to automatic)'}</button>` : ''}
+                </div>`;
+            modal.classList.add('active');
+            schToggle();
+        }
+        function closeScheduleModal() { document.getElementById('schedule-modal')?.classList.remove('active'); }
+
+        function schToggle() {
+            const mode = document.querySelector('input[name="sch-mode"]:checked')?.value || 'after';
+            document.getElementById('sch-after-box').style.display = (mode === 'after') ? 'block' : 'none';
+            document.getElementById('sch-at-box').style.display = (mode === 'at') ? 'block' : 'none';
+            const times = parseInt(document.getElementById('sch-times').value) || 1;
+            document.getElementById('sch-every-box').style.display = (times > 1) ? 'block' : 'none';
+            schPreview();
+        }
+        function schPreset(v, u) {
+            document.querySelector('input[name="sch-mode"][value="after"]').checked = true;
+            document.getElementById('sch-val').value = v;
+            document.getElementById('sch-unit').value = u;
+            schToggle();
+        }
+        function schRead() {
+            const mode = document.querySelector('input[name="sch-mode"]:checked')?.value || 'a
         function getSrsInfo(card) {
             const isAr = (appLang === 'ar');
             const st = srsState(card);
@@ -14014,8 +13899,11 @@
     window.lsListenLesson = function () {
         if (!('speechSynthesis' in window)) return toast(T('المتصفح لا يدعم نطق النصوص', 'TTS not supported'));
         if (isSpeakingLesson) {
-            if (typeof stopAllSpeech === 'function') stopAllSpeech();
-            else window.speechSynthesis.cancel();
+            window.speechSynthesis.cancel();
+            if (activeTTSAudio) {
+                activeTTSAudio.pause();
+                activeTTSAudio = null;
+            }
             isSpeakingLesson = false;
             updateSpeakerBtn(false);
             toast(T('تم إيقاف القراءة', 'Reading stopped'));
@@ -14029,34 +13917,26 @@
         const isAr = /[\u0600-\u06FF]/.test(cleanText);
         const langCode = isAr ? 'ar' : 'en';
 
-        const bestVoice = (typeof getBestVoiceForLang === 'function') ? getBestVoiceForLang(langCode) : null;
-        const chunks = (typeof chunkTextForSpeech === 'function') ? chunkTextForSpeech(cleanText, 160) : [cleanText];
-
         isSpeakingLesson = true;
         updateSpeakerBtn(true);
-        toast(T('🔊 جاري قراءة الدرس بصوت طبيعي واضح...', '🔊 Reading lesson with natural voice...'));
+        toast(T('🔊 جاري قراءة الدرس...', '🔊 Reading lesson...'));
 
-        if (bestVoice && typeof isHighQualityVoice === 'function' && isHighQualityVoice(bestVoice) && typeof playSpeechChunks === 'function') {
-            playSpeechChunks(chunks, langCode, bestVoice, 0.95, () => {
-                isSpeakingLesson = false;
-                updateSpeakerBtn(false);
-            });
-        } else if (typeof fallbackToHighQualityAudio === 'function') {
-            fallbackToHighQualityAudio(cleanText, langCode, 0.95, () => {
-                isSpeakingLesson = false;
-                updateSpeakerBtn(false);
-            });
-        } else {
-            const u = new SpeechSynthesisUtterance(cleanText);
-            u.lang = isAr ? 'ar-SA' : 'en-US';
-            u.rate = 0.95;
+        const u = new SpeechSynthesisUtterance(cleanText);
+        u.lang = isAr ? 'ar-SA' : 'en-US';
+        u.rate = 0.95;
+        if ('speechSynthesis' in window) {
+            const voices = window.speechSynthesis.getVoices();
+            const langVoices = voices.filter(v => v.lang.toLowerCase().startsWith(langCode));
+            const bestVoice = langVoices.find(v => v.name.includes('Natural') || v.name.includes('Online'))
+                || langVoices.find(v => v.name.includes('Google'))
+                || langVoices[0];
             if (bestVoice) u.voice = bestVoice;
-            u.onend = u.onerror = () => {
-                isSpeakingLesson = false;
-                updateSpeakerBtn(false);
-            };
-            window.speechSynthesis.speak(u);
         }
+        u.onend = u.onerror = () => {
+            isSpeakingLesson = false;
+            updateSpeakerBtn(false);
+        };
+        window.speechSynthesis.speak(u);
     };
 
     function updateSpeakerBtn(speaking) {
