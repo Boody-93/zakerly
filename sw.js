@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zakerly-cache-v9';
+const CACHE_NAME = 'zakerly-cache-v10';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -51,7 +51,7 @@ self.addEventListener('fetch', (event) => {
     );
     return;
   }
-  
+
   // Cache-First for static assets
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
@@ -60,7 +60,7 @@ self.addEventListener('fetch', (event) => {
           if (networkResponse && networkResponse.status === 200) {
             caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse));
           }
-        }).catch(() => {});
+        }).catch(() => { });
         return cachedResponse;
       }
       return fetch(event.request);

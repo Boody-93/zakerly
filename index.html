@@ -498,6 +498,213 @@
             transform: scale(0.97);
         }
 
+        /* ====== تصميم كروت الجمل الطويلة والكبسولات التفاعلية ====== */
+        .word-text.text-xxl-long {
+            font-size: 0.84rem !important;
+            line-height: 1.65 !important;
+        }
+
+        .sentence-word-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 5px 11px;
+            border-radius: 20px;
+            border: 1.5px solid #cbd5e1;
+            background: #ffffff;
+            color: #334155;
+            font-size: 0.8rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            font-family: inherit;
+        }
+
+        .dark-mode .sentence-word-pill {
+            background: #1e293b;
+            border-color: #334155;
+            color: #e2e8f0;
+        }
+
+        .sentence-word-pill:hover {
+            transform: translateY(-1px);
+            border-color: #818cf8;
+        }
+
+        .sentence-word-pill.is-selected {
+            background: linear-gradient(135deg, #4f46e5, #4338ca) !important;
+            border-color: #4f46e5 !important;
+            color: #ffffff !important;
+            box-shadow: 0 3px 10px rgba(79, 70, 229, 0.35);
+        }
+
+        .cloze-preview-pill {
+            display: inline-block;
+            padding: 1px 8px;
+            background: rgba(99, 102, 241, 0.2);
+            border: 1px dashed #6366f1;
+            border-radius: 6px;
+            color: #4f46e5;
+            font-weight: 800;
+            margin: 0 3px;
+        }
+
+        .dark-mode .cloze-preview-pill {
+            color: #a5b4fc;
+            border-color: #818cf8;
+        }
+
+        .sentence-cloze-blank {
+            display: inline-block;
+            padding: 2px 14px;
+            background: rgba(99, 102, 241, 0.22);
+            border: 2px dashed #818cf8;
+            color: #c7d2fe;
+            border-radius: 10px;
+            font-weight: 800;
+            margin: 2px 4px;
+            cursor: pointer;
+            letter-spacing: 2px;
+            transition: all 0.25s ease;
+            vertical-align: middle;
+        }
+
+        .sentence-cloze-blank:hover {
+            background: rgba(99, 102, 241, 0.35);
+            border-color: #a5b4fc;
+            transform: scale(1.04);
+        }
+
+        .sentence-cloze-blank.revealed {
+            background: rgba(16, 185, 129, 0.25) !important;
+            border: 1.5px solid #10b981 !important;
+            color: #34d399 !important;
+            letter-spacing: normal !important;
+            animation: pillPop 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .sentence-highlighted-word {
+            background: linear-gradient(135deg, rgba(236, 72, 153, 0.3), rgba(219, 39, 119, 0.2));
+            color: #ffffff;
+            border-bottom: 2.5px solid #ec4899;
+            padding: 1px 6px;
+            border-radius: 6px;
+            font-weight: 800;
+            display: inline-block;
+            margin: 0 2px;
+        }
+
+        .sentence-card-front-wrap,
+        .sentence-card-back-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 4px;
+            text-align: center;
+        }
+
+        .sentence-tag-badge {
+            font-size: 0.72rem;
+            font-weight: 800;
+            padding: 3px 10px;
+            border-radius: 20px;
+            background: rgba(99, 102, 241, 0.2);
+            color: #c7d2fe;
+            border: 1px solid rgba(129, 140, 248, 0.35);
+            margin-bottom: 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .sentence-tag-badge.success {
+            background: rgba(16, 185, 129, 0.2);
+            color: #a7f3d0;
+            border-color: rgba(52, 211, 153, 0.35);
+        }
+
+        .sentence-text-flow {
+            font-size: 1.15rem;
+            line-height: 1.65;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 12px;
+            max-width: 100%;
+            word-break: break-word;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: baseline;
+            gap: 4px 6px;
+        }
+
+        .sentence-trans-hint {
+            font-size: 0.95rem;
+            color: rgba(255, 255, 255, 0.82);
+            line-height: 1.5;
+            margin-top: 6px;
+            font-weight: 600;
+            direction: rtl;
+        }
+
+        .sentence-back-meaning {
+            font-size: 1.05rem;
+            color: #fde047;
+            line-height: 1.5;
+            margin: 8px 0 10px;
+            font-weight: 800;
+            direction: rtl;
+        }
+
+        .zk-shadow-pill-btn {
+            width: 100%;
+            max-width: 270px;
+            padding: 9px 16px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, rgba(236, 72, 153, 0.18), rgba(190, 24, 93, 0.25));
+            border: 1.5px solid #ec4899;
+            color: #ffffff;
+            font-size: 0.85rem;
+            font-weight: 800;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin: 8px auto 0;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            font-family: inherit;
+        }
+
+        .zk-shadow-pill-btn:hover {
+            background: #ec4899;
+            color: #ffffff;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(236, 72, 153, 0.35);
+        }
+
+        .zk-shadow-pill-btn:active {
+            transform: scale(0.97);
+        }
+
+        .zk-shadow-result-box {
+            margin-top: 8px;
+            padding: 8px 12px;
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 12px;
+            text-align: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes pillPop {
+            0% { transform: scale(0.9); }
+            50% { transform: scale(1.08); }
+            100% { transform: scale(1); }
+        }
+
         .add-section {
             background: white;
             padding: 12px;
@@ -1426,11 +1633,13 @@
         /* شريط التبويبات المودرن (Segmented Control) */
         .add-tabs {
             display: flex;
-            gap: 4px;
+            gap: 3px;
             margin-bottom: 14px;
             background: #f1f5f9;
             padding: 4px;
             border-radius: 14px;
+            overflow-x: auto;
+            scrollbar-width: none;
         }
 
         .dark-mode .add-tabs {
@@ -1439,16 +1648,18 @@
 
         .add-tab-btn {
             flex: 1;
-            padding: 8px 6px;
+            min-width: 0;
+            padding: 7px 3px;
             border: none;
             border-radius: 11px;
             font-weight: 700;
-            font-size: 0.82rem;
+            font-size: 0.76rem;
             cursor: pointer;
             background: transparent;
             color: #64748b;
             white-space: nowrap;
             transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+            text-align: center;
         }
 
         .add-tab-btn.active {
@@ -5208,8 +5419,9 @@
                 <!-- التبويبات المودرن بدون انكسار السطور -->
                 <div class="add-tabs">
                     <button class="add-tab-btn" id="tab-btn-card" onclick="switchAddTab('card')">🃏 كارت</button>
+                    <button class="add-tab-btn" id="tab-btn-sentence" onclick="switchAddTab('sentence')">💬 جملة</button>
                     <button class="add-tab-btn" id="tab-btn-cat" onclick="switchAddTab('cat')">📁 قسم</button>
-                    <button class="add-tab-btn" id="tab-btn-bulk" onclick="switchAddTab('bulk')">📦 جملة</button>
+                    <button class="add-tab-btn" id="tab-btn-bulk" onclick="switchAddTab('bulk')">📦 مجمع</button>
                 </div>
 
                 <!-- 1. فورم إضافة كارت جديد المطور -->
@@ -5276,6 +5488,72 @@
                     </div>
 
                     <div id="add-session-badge" class="zk-session-badge"></div>
+                </div>
+
+                <!-- 1.5 فورم إضافة كارت جملة كاملة واختيار الكلمات المخفية -->
+                <div id="form-add-sentence" style="display: none;">
+                    <div id="add-sentence-target-info" class="zk-target-capsule"></div>
+
+                    <!-- حقل الجملة الكاملة -->
+                    <div style="font-size:0.75rem; font-weight:700; color:#64748b; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
+                        <span>📝 الجملة الكاملة (باللغة الأجنبية):</span>
+                        <span id="sentence-words-count-badge" style="font-size:0.7rem; color:#818cf8; font-weight:700;">0 كلمة</span>
+                    </div>
+                    <div class="zk-input-group" style="margin-bottom:8px;">
+                        <textarea id="sentence-front-input" class="modern-input" rows="3" 
+                            placeholder="اكتب أو الصق الجملة الطويلة هنا..." 
+                            oninput="autoDetectDir(this); updateSentenceWordsSelector();" 
+                            style="resize:none; padding:10px 42px 10px 12px; font-size:0.92rem; line-height:1.5;"></textarea>
+                        <div class="zk-input-actions" style="top:10px; transform:none;">
+                            <button type="button" class="zk-field-btn" onclick="previewSentenceSpeech()" title="استمع لنطق الجملة 🔊">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+                            </button>
+                            <button type="button" class="zk-field-btn" id="btn-mic-sentence-front-input" onclick="dictateToInput('sentence-front-input')" title="كتابة صوتية بالمايك">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- ميزة كبسولات الكلمات التفاعلية لاختيار الكلمات المخفية -->
+                    <div class="zk-sentence-selector-wrap" style="background:rgba(99,102,241,0.06); border:1px dashed #818cf8; border-radius:12px; padding:10px; margin-bottom:12px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                            <span style="font-size:0.75rem; font-weight:800; color:#4f46e5;">✂️ اضغط على الكلمات الصعبة لإخفائها:</span>
+                            <span id="sentence-hidden-count" style="font-size:0.7rem; font-weight:700; color:#059669; background:#dcfce7; padding:2px 8px; border-radius:10px;">0 مخفية</span>
+                        </div>
+                        <div id="sentence-words-pills" style="display:flex; flex-wrap:wrap; gap:6px; min-height:36px; align-items:center;">
+                            <span style="font-size:0.75rem; color:#94a3b8; font-style:italic;">اكتب الجملة أولاً لتظهر كلماتها هنا...</span>
+                        </div>
+                        <!-- معاينة شكل الجملة مع الفراغات -->
+                        <div id="sentence-cloze-preview" style="display:none; margin-top:8px; padding-top:8px; border-top:1px solid rgba(99,102,241,0.15); font-size:0.82rem; color:#334155; line-height:1.5;"></div>
+                    </div>
+
+                    <!-- حقل الترجمة / المعنى الكامل -->
+                    <div style="font-size:0.75rem; font-weight:700; color:#64748b; margin-bottom:4px;">
+                        <span>🌐 المعنى أو الترجمة الكاملة:</span>
+                    </div>
+                    <div class="zk-input-group" style="margin-bottom:10px;">
+                        <input type="text" id="sentence-back-input" class="modern-input" placeholder="ترجمة الجملة أو المعنى بالعربية..." oninput="autoDetectDir(this)" autocomplete="off">
+                        <div class="zk-input-actions">
+                            <button type="button" class="zk-field-btn" id="btn-mic-sentence-back-input" onclick="dictateToInput('sentence-back-input')" title="كتابة صوتية بالمايك">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- حقل ملاحظة أو سياق إضافي -->
+                    <input type="text" id="sentence-note-input" class="modern-input" placeholder="ملاحظة سياق أو استخدام (اختياري)..." style="margin-bottom:12px; font-size:0.8rem;">
+
+                    <!-- أزرار الحفظ المزدوجة -->
+                    <div class="zk-modal-actions-grid">
+                        <button type="button" onclick="confirmAddSentence(false)" class="btn-modal-action btn-gradient-indigo">
+                            <span>حفظ الجملة</span>
+                            <span>✅</span>
+                        </button>
+                        <button type="button" onclick="confirmAddSentence(true)" class="btn-modal-action btn-gradient-amber">
+                            <span>حفظ وإضافة أخرى</span>
+                            <span>⚡</span>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- 2. فورم إضافة قسم / لغة / موضوع -->
@@ -6063,8 +6341,9 @@
             const ar = (appLang === 'ar');
             const titles = {
                 card: ar ? '🃏 كارت جديد' : '🃏 New Card',
+                sentence: ar ? '💬 جملة وتعبير كامل' : '💬 New Sentence Card',
                 cat: '📁 ' + (ar ? 'إضافة ' : 'Add ') + getAddCatLabel(),
-                bulk: ar ? '📦 جملة / نسخ احتياطي' : '📦 Bulk / Backup'
+                bulk: ar ? '📦 مجمع / نسخ احتياطي' : '📦 Bulk / Backup'
             };
             const span = document.querySelector('#add-modal .add-modal-box span');
             if (span) span.innerText = titles[tab] || titles.card;
@@ -6089,6 +6368,12 @@
                     c1: '#818cf8',
                     c2: '#4f46e5'
                 },
+                sentence: {
+                    icon: `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><line x1="8" y1="9" x2="16" y2="9"></line><line x1="8" y1="13" x2="14" y2="13"></line></svg>`,
+                    label: ar ? 'جملة' : 'Sentence',
+                    c1: '#ec4899',
+                    c2: '#be185d'
+                },
                 cat: {
                     icon: `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`,
                     label: getAddCatLabel(),
@@ -6097,7 +6382,7 @@
                 },
                 bulk: {
                     icon: `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>`,
-                    label: ar ? 'جملة / نسخ' : 'Bulk / Backup',
+                    label: ar ? 'مجمع / نسخ' : 'Bulk / Backup',
                     c1: '#34d399',
                     c2: '#059669'
                 },
@@ -6108,9 +6393,8 @@
                     c2: '#d97706'
                 }
             };
-            // الأهم حسب مكانك في التطبيق يتحط في النص
-            const order = (navLevel === 'study') ? ['cat', 'card', 'lesson', 'bulk'] : ['card', 'cat', 'lesson', 'bulk'];
-            const pos = [[-128, -96], [-46, -168], [46, -168], [128, -96]];
+            const order = ['sentence', 'card', 'lesson', 'cat', 'bulk'];
+            const pos = [[-130, -50], [-85, -125], [0, -155], [85, -125], [130, -50]];
             document.getElementById('fab-dial-items').innerHTML = order.map((k, i) => `
                 <button class="fab-dial-item" style="--i:${i};--dx:${pos[i][0]}px;--dy:${pos[i][1]}px;--c1:${defs[k].c1};--c2:${defs[k].c2};"
                         onclick="pickFabItem('${k}')" title="${defs[k].label}">
@@ -6167,22 +6451,145 @@
             return targetName.replace(/^📘\s*/, '📂 ').replace(/^📁\s*/, '📂 ');
         }
 
+        let sentenceSelectedIndices = [];
+
+        function updateSentenceWordsSelector() {
+            const raw = (document.getElementById('sentence-front-input')?.value || '').trim();
+            const pillsContainer = document.getElementById('sentence-words-pills');
+            const previewEl = document.getElementById('sentence-cloze-preview');
+            const countBadge = document.getElementById('sentence-words-count-badge');
+            const hiddenCountBadge = document.getElementById('sentence-hidden-count');
+            if (!pillsContainer) return;
+
+            if (!raw) {
+                pillsContainer.innerHTML = `<span style="font-size:0.75rem; color:#94a3b8; font-style:italic;">${appLang === 'ar' ? 'اكتب الجملة أولاً لتظهر كلماتها هنا...' : 'Type sentence above to see words here...'}</span>`;
+                if (previewEl) previewEl.style.display = 'none';
+                if (countBadge) countBadge.innerText = `0 ${appLang === 'ar' ? 'كلمة' : 'words'}`;
+                if (hiddenCountBadge) hiddenCountBadge.innerText = `0 ${appLang === 'ar' ? 'مخفية' : 'hidden'}`;
+                sentenceSelectedIndices = [];
+                return;
+            }
+
+            const words = raw.split(/\s+/);
+            if (countBadge) countBadge.innerText = `${words.length} ${appLang === 'ar' ? 'كلمة' : 'words'}`;
+
+            sentenceSelectedIndices = sentenceSelectedIndices.filter(idx => idx < words.length);
+
+            pillsContainer.innerHTML = words.map((w, idx) => {
+                const isSelected = sentenceSelectedIndices.includes(idx);
+                return `<button type="button" class="sentence-word-pill ${isSelected ? 'is-selected' : ''}" onclick="toggleSentenceWordPill(${idx})">
+                    <span>${esc(w)}</span>
+                    ${isSelected ? '<span style="font-size:0.7rem; margin-inline-start:3px;">✂️</span>' : ''}
+                </button>`;
+            }).join('');
+
+            if (hiddenCountBadge) {
+                hiddenCountBadge.innerText = `${sentenceSelectedIndices.length} ${appLang === 'ar' ? 'مخفية' : 'hidden'}`;
+            }
+
+            if (previewEl) {
+                if (sentenceSelectedIndices.length > 0) {
+                    previewEl.style.display = 'block';
+                    const previewText = words.map((w, idx) => {
+                        if (sentenceSelectedIndices.includes(idx)) {
+                            return `<span class="cloze-preview-pill">[ ... ]</span>`;
+                        }
+                        return esc(w);
+                    }).join(' ');
+                    previewEl.innerHTML = `<strong>${appLang === 'ar' ? 'معاينة أثناء المذاكرة:' : 'Study Preview:'}</strong> ${previewText}`;
+                } else {
+                    previewEl.style.display = 'none';
+                }
+            }
+        }
+
+        function toggleSentenceWordPill(idx) {
+            if (sentenceSelectedIndices.includes(idx)) {
+                sentenceSelectedIndices = sentenceSelectedIndices.filter(i => i !== idx);
+            } else {
+                sentenceSelectedIndices.push(idx);
+            }
+            updateSentenceWordsSelector();
+        }
+
+        function previewSentenceSpeech() {
+            const text = (document.getElementById('sentence-front-input')?.value || '').trim();
+            if (!text) return;
+            speakWord(text);
+        }
+
+        function confirmAddSentence(addNext) {
+            const frontEl = document.getElementById('sentence-front-input');
+            const backEl = document.getElementById('sentence-back-input');
+            const noteEl = document.getElementById('sentence-note-input');
+            const front = (frontEl?.value || '').trim();
+            const back = (backEl?.value || '').trim();
+            const note = (noteEl?.value || '').trim();
+            const isAr = (appLang === 'ar');
+
+            if (!front || !back) {
+                alert(isAr ? 'من فضلك اكتب الجملة ومعناها الأول!' : 'Please enter both sentence and its meaning!');
+                return;
+            }
+
+            const words = front.split(/\s+/);
+            const hiddenWords = sentenceSelectedIndices.map(i => words[i]).filter(Boolean);
+
+            const activeDeck = getActiveDeckId();
+            const newCard = {
+                id: Date.now() + Math.floor(Math.random() * 1000),
+                front: front,
+                back: back,
+                note: note,
+                subCatId: activeDeck,
+                kind: 'sentence',
+                hiddenIndices: [...sentenceSelectedIndices],
+                hiddenWords: hiddenWords,
+                nextReview: Date.now(),
+                level: 0,
+                isHard: false,
+                reviews: 0,
+                created: Date.now()
+            };
+
+            cards.push(newCard);
+            saveCards();
+            playFeedbackSound('easy');
+            triggerHaptic(20);
+            zkToast(isAr ? '💬 تم حفظ كارت الجملة بنجاح!' : '💬 Sentence card saved successfully!');
+
+            if (addNext) {
+                frontEl.value = '';
+                backEl.value = '';
+                if (noteEl) noteEl.value = '';
+                sentenceSelectedIndices = [];
+                updateSentenceWordsSelector();
+                frontEl.focus();
+            } else {
+                closeAddModal();
+            }
+        }
+
         function switchAddTab(tab) {
             const btnCard = document.getElementById('tab-btn-card');
+            const btnSentence = document.getElementById('tab-btn-sentence');
             const btnCat = document.getElementById('tab-btn-cat');
             const btnBulk = document.getElementById('tab-btn-bulk');
             const formCard = document.getElementById('form-add-card');
+            const formSentence = document.getElementById('form-add-sentence');
             const formCat = document.getElementById('form-add-cat');
             const formBulk = document.getElementById('form-add-bulk');
             const isAr = (appLang === 'ar');
 
-            if (btnBulk) btnBulk.innerText = isAr ? '📦 جملة / نسخ' : '📦 Bulk / Backup';
+            if (btnBulk) btnBulk.innerText = isAr ? '📦 مجمع / نسخ' : '📦 Bulk / Backup';
 
             btnCard.classList.toggle('active', tab === 'card');
+            if (btnSentence) btnSentence.classList.toggle('active', tab === 'sentence');
             btnCat.classList.toggle('active', tab === 'cat');
             if (btnBulk) btnBulk.classList.toggle('active', tab === 'bulk');
 
             formCard.style.display = (tab === 'card') ? 'block' : 'none';
+            if (formSentence) formSentence.style.display = (tab === 'sentence') ? 'block' : 'none';
             formCat.style.display = (tab === 'cat') ? 'block' : 'none';
             if (formBulk) formBulk.style.display = (tab === 'bulk') ? 'block' : 'none';
 
@@ -6192,6 +6599,14 @@
                     targetInfoEl.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> <span>${isAr ? 'سيتم الحفظ في: ' : 'Saving into: '}<b>${getTargetDeckName()}</b></span>`;
                 }
                 document.getElementById('front-input').focus();
+            } else if (tab === 'sentence') {
+                const targetInfoEl = document.getElementById('add-sentence-target-info');
+                if (targetInfoEl) {
+                    targetInfoEl.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> <span>${isAr ? 'سيتم الحفظ في: ' : 'Saving into: '}<b>${getTargetDeckName()}</b></span>`;
+                }
+                const fInput = document.getElementById('sentence-front-input');
+                if (fInput) fInput.focus();
+                updateSentenceWordsSelector();
             } else if (tab === 'bulk') {
                 document.getElementById('bulk-target-info').innerText = t('targetInfo') + getTargetDeckName();
                 document.getElementById('bulk-input').placeholder = isAr
@@ -7733,7 +8148,7 @@
                                 </div>
 
                                 <div class="card-hero-body">
-                                    <div class="word-text ${getCardTextClass(frontTxt)}">${formatCardDisplay(frontTxt)}</div>
+                                    ${currentCard.kind === 'sentence' ? renderSentenceCardFront(currentCard) : `<div class="word-text ${getCardTextClass(frontTxt)}">${formatCardDisplay(frontTxt)}</div>`}
                                 </div>
 
                                 <div class="card-hero-footer">
@@ -7775,8 +8190,10 @@
                                 </div>
 
                                 <div class="card-hero-body">
-                                    <div class="word-text blur-reveal ${getCardTextClass(backTxt)}" id="blur-back-target" onpointerdown="event.stopPropagation()" onclick="this.classList.toggle('revealed')" title="${t('blurHint')}">${formatCardDisplay(backTxt)}</div>
-                                    ${currentCard.note ? `<div class="card-note">📝 ${currentCard.note}</div>` : ''}
+                                    ${currentCard.kind === 'sentence' ? renderSentenceCardBack(currentCard) : `
+                                        <div class="word-text blur-reveal ${getCardTextClass(backTxt)}" id="blur-back-target" onpointerdown="event.stopPropagation()" onclick="this.classList.toggle('revealed')" title="${t('blurHint')}">${formatCardDisplay(backTxt)}</div>
+                                        ${currentCard.note ? `<div class="card-note">📝 ${currentCard.note}</div>` : ''}
+                                    `}
                                 </div>
 
                                 <div class="card-hero-footer">
@@ -7870,10 +8287,201 @@
         // ====== دوال الخط الذكي ووضع ملء الشاشة للكروت ======
         function getCardTextClass(txt) {
             const l = (txt || '').trim().length;
-            if (l > 120) return 'text-xl-long';
-            if (l > 65) return 'text-long';
-            if (l > 30) return 'text-med';
+            if (l > 140) return 'text-xxl-long';
+            if (l > 90) return 'text-xl-long';
+            if (l > 55) return 'text-long';
+            if (l > 25) return 'text-med';
             return 'text-short';
+        }
+
+        function renderSentenceCardFront(card) {
+            const raw = card.front || '';
+            const words = raw.split(/\s+/);
+            const hiddenSet = new Set(card.hiddenIndices || []);
+            const hiddenWordsLower = (card.hiddenWords || []).map(w => (w || '').toLowerCase());
+
+            const renderedWords = words.map((w, idx) => {
+                const cleanW = w.toLowerCase().replace(/[^a-zA-Z0-9\u0600-\u06FF]/g, '');
+                const isHidden = hiddenSet.has(idx) || (card.hiddenIndices == null && hiddenWordsLower.includes(cleanW));
+                if (isHidden) {
+                    return `<span class="sentence-cloze-blank" data-word="${esc(w)}" onclick="revealSentencePill(this, event)">[ ... ]</span>`;
+                }
+                return `<span>${esc(w)}</span>`;
+            });
+
+            const isAr = (appLang === 'ar');
+            return `
+                <div class="sentence-card-front-wrap">
+                    <div class="sentence-tag-badge">💬 ${isAr ? 'تحدي الجملة والكلمة الناقصة' : 'Sentence Challenge'}</div>
+                    <div class="sentence-text-flow ${getCardTextClass(raw)}">${renderedWords.join(' ')}</div>
+                    ${card.back ? `<div class="sentence-trans-hint">« ${esc(card.back)} »</div>` : ''}
+                </div>
+            `;
+        }
+
+        function revealSentencePill(el, event) {
+            if (event) event.stopPropagation();
+            const word = el.getAttribute('data-word');
+            if (!word) return;
+            el.classList.add('revealed');
+            el.innerHTML = esc(word);
+            playFeedbackSound('flip');
+            triggerHaptic(15);
+        }
+
+        function renderSentenceCardBack(card) {
+            const raw = card.front || '';
+            const words = raw.split(/\s+/);
+            const hiddenSet = new Set(card.hiddenIndices || []);
+            const hiddenWordsLower = (card.hiddenWords || []).map(w => (w || '').toLowerCase());
+
+            const highlightedWords = words.map((w, idx) => {
+                const cleanW = w.toLowerCase().replace(/[^a-zA-Z0-9\u0600-\u06FF]/g, '');
+                const isHidden = hiddenSet.has(idx) || (card.hiddenIndices == null && hiddenWordsLower.includes(cleanW));
+                if (isHidden) {
+                    return `<mark class="sentence-highlighted-word">${esc(w)}</mark>`;
+                }
+                return `<span>${esc(w)}</span>`;
+            });
+
+            const isAr = (appLang === 'ar');
+            return `
+                <div class="sentence-card-back-wrap">
+                    <div class="sentence-tag-badge success">✨ ${isAr ? 'الجملة الكاملة الصحيحة' : 'Complete Sentence'}</div>
+                    <div class="sentence-text-flow ${getCardTextClass(raw)}">${highlightedWords.join(' ')}</div>
+                    <div class="sentence-back-meaning">« ${esc(card.back)} »</div>
+                    ${card.note ? `<div class="card-note">📝 ${esc(card.note)}</div>` : ''}
+                    
+                    <div style="width:100%; margin-top:6px;">
+                        <button type="button" class="zk-shadow-pill-btn" id="sentence-shadow-btn" onpointerdown="event.stopPropagation()" onclick="startSentenceShadowing(event)">
+                            🎙️ ${isAr ? 'ردد الجملة لتجربة نطقك' : 'Repeat Sentence with Voice'}
+                        </button>
+                        <div id="sentence-shadow-result" class="zk-shadow-result-box" style="display:none;" onpointerdown="event.stopPropagation()"></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        let sentenceShadowRec = null;
+
+        function startSentenceShadowing(event) {
+            if (event) event.stopPropagation();
+            if (!currentCard) return;
+
+            const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const isAr = (appLang === 'ar');
+            if (!SpeechRec) {
+                alert(isAr ? 'المتصفح لا يدعم خاصية التعرف الصوتي.' : 'Speech recognition not supported in this browser.');
+                return;
+            }
+
+            const btn = document.getElementById('sentence-shadow-btn');
+            const resultBox = document.getElementById('sentence-shadow-result');
+            if (!btn || !resultBox) return;
+
+            if (sentenceShadowRec) {
+                try { sentenceShadowRec.stop(); } catch(e) {}
+                sentenceShadowRec = null;
+                return;
+            }
+
+            const targetSentence = currentCard.front;
+            const subCat = getCurrentSubCat();
+            let lang = 'en-US';
+            if (subCat && subCat.langCode && subCat.langCode !== 'auto') {
+                lang = subCat.langCode;
+            }
+
+            try {
+                const rec = new SpeechRec();
+                rec.lang = lang;
+                rec.continuous = false;
+                rec.interimResults = false;
+
+                rec.onstart = () => {
+                    sentenceShadowRec = rec;
+                    btn.innerHTML = `<span class="zk-pulse-dot" style="display:inline-block;width:8px;height:8px;background:#ef4444;border-radius:50%;margin-inline-end:5px;"></span> ${isAr ? 'جاري الاستماع... تكلم الآن 🔴' : 'Listening... Speak now 🔴'}`;
+                    btn.style.borderColor = '#ef4444';
+                    btn.style.color = '#ef4444';
+                    resultBox.style.display = 'none';
+                };
+
+                rec.onresult = (e) => {
+                    const transcript = e.results[0][0].transcript || '';
+                    const scoreObj = evaluateSentenceShadow(transcript, targetSentence);
+                    resultBox.style.display = 'block';
+                    resultBox.innerHTML = `
+                        <div style="font-size:0.85rem; font-weight:800; margin-bottom:4px; color:${scoreObj.color};">
+                            ${scoreObj.emoji} ${isAr ? 'دقة النطق:' : 'Pronunciation accuracy:'} <strong>${scoreObj.score}%</strong>
+                        </div>
+                        <div style="font-size:0.78rem; color:#cbd5e1; line-height:1.4;">
+                            ${scoreObj.feedback}
+                        </div>
+                    `;
+                    triggerHaptic(scoreObj.score > 70 ? [20, 40] : 30);
+                    playFeedbackSound(scoreObj.score > 70 ? 'good' : 'hard');
+                };
+
+                rec.onerror = (e) => {
+                    console.warn('Shadowing error:', e.error);
+                    resultBox.style.display = 'block';
+                    resultBox.innerHTML = `<div style="color:#f87171; font-size:0.78rem;">⚠️ ${isAr ? 'لم يتم التقاط الصوت بوضوح، حاول مرة أخرى.' : 'Voice not recognized clearly, try again.'}</div>`;
+                };
+
+                rec.onend = () => {
+                    sentenceShadowRec = null;
+                    btn.innerHTML = `🎙️ ${isAr ? 'ردد الجملة لتجربة نطقك' : 'Repeat Sentence with Voice'}`;
+                    btn.style.borderColor = '#ec4899';
+                    btn.style.color = '#ffffff';
+                };
+
+                rec.start();
+            } catch(err) {
+                console.error('Failed to start shadowing:', err);
+            }
+        }
+
+        function evaluateSentenceShadow(spoken, target) {
+            const cleanWord = w => (w || '').toLowerCase().replace(/[^a-zA-Z0-9\u0600-\u06FF]/g, '');
+            const spokenWords = (spoken || '').split(/\s+/).map(cleanWord).filter(Boolean);
+            const targetWords = (target || '').split(/\s+/).map(cleanWord).filter(Boolean);
+            const isAr = (appLang === 'ar');
+
+            if (targetWords.length === 0) return { score: 100, color: '#10b981', emoji: '🎉', feedback: isAr ? 'ممتاز!' : 'Excellent!' };
+
+            let matches = 0;
+            const feedbackList = targetWords.map(tw => {
+                const found = spokenWords.includes(tw);
+                if (found) {
+                    matches++;
+                    return `<span style="color:#34d399; font-weight:700;">${tw}</span>`;
+                } else {
+                    return `<span style="color:#fbbf24; text-decoration:underline;">${tw}</span>`;
+                }
+            });
+
+            const score = Math.min(100, Math.round((matches / targetWords.length) * 100));
+            let color = '#10b981', emoji = '🌟', msg = '';
+            if (score >= 85) {
+                color = '#34d399';
+                emoji = '🌟';
+                msg = isAr ? 'نطق ممتاز ومتقن جداً! 👏' : 'Excellent pronunciation! 👏';
+            } else if (score >= 60) {
+                color = '#fbbf24';
+                emoji = '👍';
+                msg = isAr ? 'نطق جيد جداً، ركّز على الكلمات المحددة بالأصفر.' : 'Very good! Focus on the words underlined in yellow.';
+            } else {
+                color = '#f87171';
+                emoji = '💪';
+                msg = isAr ? 'حاول ترديدها مرة أخرى بهدوء ووضوح أكبر.' : 'Try repeating again more slowly and clearly.';
+            }
+
+            return {
+                score: score,
+                color: color,
+                emoji: emoji,
+                feedback: `${msg}<br><span style="margin-top:4px; display:inline-block; direction:ltr;">${feedbackList.join(' ')}</span>`
+            };
         }
 
         function formatCardDisplay(txt) {
@@ -8303,7 +8911,10 @@
             const answer = (typeof isReverseMode !== 'undefined' && isReverseMode ? currentCard.front : currentCard.back) || '';
             let hintContent = '';
 
-            if (currentCard.note && currentCard.note.trim()) {
+            if (currentCard.kind === 'sentence' && (currentCard.hiddenWords || []).length > 0) {
+                const pks = currentCard.hiddenWords.map(w => '<b>[' + esc(w[0] || '').toUpperCase() + '...]</b>').join(' ، ');
+                hintContent = '🔍 ' + (isAr ? 'الكلمات المخفية تبدأ بـ: ' : 'Hidden words start with: ') + pks;
+            } else if (currentCard.note && currentCard.note.trim()) {
                 hintContent = '💡 ' + esc(currentCard.note.trim());
             } else {
                 const words = answer.trim().split(/\s+/);
@@ -10519,7 +11130,9 @@
                 <div class="manage-item">
                     <div class="manage-item-top">
                         <div style="text-align: ${alignDir}; flex: 1;">
-                            <div style="font-weight: 700; color: #0f172a; font-size: 0.95rem;">${card.front}</div>
+                            <div style="font-weight: 700; color: #0f172a; font-size: 0.95rem;">
+                                ${card.kind === 'sentence' ? `<span style="font-size:0.68rem; background:rgba(236,72,153,0.15); color:#ec4899; padding:2px 6px; border-radius:6px; font-weight:800; margin-inline-end:5px;">💬 ${appLang === 'ar' ? 'جملة' : 'Sentence'}</span>` : ''}${card.front}
+                            </div>
                             <div style="color: #4f46e5; font-size: 0.85rem;">${card.back}</div>
 							${card.note ? `<div style="font-size:0.75rem; opacity:0.75; margin-top:2px;">📝 ${card.note}</div>` : ''}
                             <div style="font-size:0.72rem; opacity:0.8; margin-top:3px;">⏰ ${srsWhen(card.nextReview)}${srsPlanActive(card) ? ` · ${appLang === 'ar' ? `جدولة: متبقي ${card.plan.left}${card.plan.left > 1 ? ` (كل ${srsDur(card.plan.every)})` : ''}` : `plan: ${card.plan.left} left${card.plan.left > 1 ? ` (every ${srsDur(card.plan.every)})` : ''}`}` : ''}</div>
