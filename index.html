@@ -5759,13 +5759,17 @@
 
         // تأكد إن القيم المحفوظة لسه موجودة فعلاً (ممكن تكون اتحذفت)
         let currentMainCatId = localStorage.getItem('current_main_cat');
-        if (!categories.some(c => c.id === currentMainCatId)) currentMainCatId = categories[0].id;
-        const _initMain = categories.find(c => c.id === currentMainCatId);
+        if (!categories.some(c => c.id === currentMainCatId)) {
+            currentMainCatId = categories[0] ? categories[0].id : null;
+        }
+        const _initMain = categories.find(c => c.id === currentMainCatId) || categories[0];
         let currentSubCatId = localStorage.getItem('current_sub_cat');
-        if (!_initMain.subCategories.some(s => s.id === currentSubCatId)) currentSubCatId = _initMain.subCategories[0].id;
-        const _initSub = _initMain.subCategories.find(s => s.id === currentSubCatId);
+        if (_initMain && _initMain.subCategories && !_initMain.subCategories.some(s => s.id === currentSubCatId)) {
+            currentSubCatId = _initMain.subCategories[0] ? _initMain.subCategories[0].id : null;
+        }
+        const _initSub = (_initMain && _initMain.subCategories) ? (_initMain.subCategories.find(s => s.id === currentSubCatId) || _initMain.subCategories[0]) : null;
         let currentTopicId = localStorage.getItem('current_topic_id');
-        if (!_initSub.topics || !_initSub.topics.some(tp => tp.id === currentTopicId)) {
+        if (_initSub && (!_initSub.topics || !_initSub.topics.some(tp => tp.id === currentTopicId))) {
             currentTopicId = (_initSub.topics && _initSub.topics[0]) ? _initSub.topics[0].id : currentSubCatId;
         }
         let addingCatMode = 'sub';
@@ -6072,11 +6076,17 @@
         }
 
         function getCurrentMainCat() {
+            if (!categories || categories.length === 0) {
+                return { id: 'default_main', name: 'عام', isLangCategory: false, subCategories: [] };
+            }
             return categories.find(c => c.id === currentMainCatId) || categories[0];
         }
 
         function getCurrentSubCat() {
             const main = getCurrentMainCat();
+            if (!main || !main.subCategories || main.subCategories.length === 0) {
+                return { id: 'default_sub', name: 'عام', topics: [], children: [] };
+            }
             return main.subCategories.find(s => s.id === currentSubCatId) || main.subCategories[0];
         }
 
@@ -6087,12 +6097,14 @@
         let studyDeckOverride = null;
 
         function collectIds(node) {
+            if (!node) return [];
             let ids = [node.id];
             (node.children || []).forEach(ch => { ids = ids.concat(collectIds(ch)); });
             return ids;
         }
 
         function findInTree(node, id, trail) {
+            if (!node) return null;
             trail = trail || [];
             if (node.id === id) return trail;
             for (const ch of (node.children || [])) {
@@ -6105,29 +6117,34 @@
         function getBaseNode() {
             const main = getCurrentMainCat();
             const sub = getCurrentSubCat();
-            if (main.isLangCategory) {
+            if (main && main.isLangCategory) {
                 ensureLanguageTopics(sub);
-                return sub.topics.find(tp => tp.id === currentTopicId) || sub.topics[0];
+                return (sub && sub.topics && sub.topics.length > 0)
+                    ? (sub.topics.find(tp => tp.id === currentTopicId) || sub.topics[0])
+                    : (sub || { id: 'root', name: 'Root', children: [] });
             }
-            return sub;
+            return sub || { id: 'root', name: 'Root', children: [] };
         }
 
         // السلسلة: [العقدة الأساسية, ...المجلدات حسب المسار]
         function getFolderChain() {
-            const chain = [getBaseNode()];
+            const base = getBaseNode();
+            const chain = [base];
             let node = chain[0];
-            for (const id of folderPath) {
-                const next = (node.children || []).find(ch => ch.id === id);
-                if (!next) break;
-                chain.push(next);
-                node = next;
+            if (node) {
+                for (const id of folderPath) {
+                    const next = (node.children || []).find(ch => ch.id === id);
+                    if (!next) break;
+                    chain.push(next);
+                    node = next;
+                }
             }
             return chain;
         }
 
         function getFolderNode() {
             const chain = getFolderChain();
-            return chain[chain.length - 1];
+            return chain[chain.length - 1] || { id: 'root', name: 'Root', children: [] };
         }
 
         function getStudyNode() {
@@ -6135,18 +6152,21 @@
         }
 
         function getActiveDeckId() {
-            if (navLevel === 'folder') return getFolderNode().id;
+            if (navLevel === 'folder') {
+                const fn = getFolderNode();
+                return fn ? fn.id : 'root';
+            }
             if (studyDeckOverride) return studyDeckOverride;
             const main = getCurrentMainCat();
             const sub = getCurrentSubCat();
-            if (main.isLangCategory) {
+            if (main && main.isLangCategory) {
                 ensureLanguageTopics(sub);
-                if (!sub.topics.find(t => t.id === currentTopicId)) {
-                    currentTopicId = sub.topics[0].id;
+                if (sub && sub.topics && !sub.topics.find(t => t.id === currentTopicId)) {
+                    currentTopicId = (sub.topics && sub.topics[0]) ? sub.topics[0].id : null;
                 }
-                return currentTopicId;
+                return currentTopicId || (sub ? sub.id : 'root');
             }
-            return currentSubCatId;
+            return currentSubCatId || (sub ? sub.id : 'root');
         }
 
         function persistNavState() {
@@ -6592,16 +6612,18 @@
         function getTargetDeckName() {
             const mainCat = getCurrentMainCat();
             const subCat = getCurrentSubCat();
-            let targetName = trName(subCat.name);
-            if (mainCat.isLangCategory) {
+            let targetName = subCat ? trName(subCat.name) : (mainCat ? trName(mainCat.name) : 'عام');
+            if (mainCat && mainCat.isLangCategory) {
                 ensureLanguageTopics(subCat);
-                const topicObj = subCat.topics.find(t => t.id === currentTopicId) || subCat.topics[0];
-                targetName += ' - ' + trName(topicObj.name);
+                const topicObj = (subCat && subCat.topics) ? (subCat.topics.find(t => t.id === currentTopicId) || subCat.topics[0]) : null;
+                if (topicObj) {
+                    targetName += ' - ' + trName(topicObj.name);
+                }
             }
             if (navLevel === 'folder' || (navLevel === 'study' && studyDeckOverride)) {
-                getFolderChain().slice(1).forEach(n => { targetName += ' › ' + trName(n.name); });
+                getFolderChain().slice(1).forEach(n => { if (n && n.name) targetName += ' › ' + trName(n.name); });
             }
-            return targetName.replace(/^📘\s*/, '📂 ').replace(/^📁\s*/, '📂 ');
+            return (targetName || 'عام').replace(/^📘\s*/, '📂 ').replace(/^📁\s*/, '📂 ');
         }
 
         let sentenceSelectedIndices = [];
@@ -7401,9 +7423,6 @@
             closeCatActionsModal();
             const arr0 = getCurrentListArray();
             const isAr0 = (appLang === 'ar');
-            if (navLevel !== 'folder' && arr0.length <= 1) {
-                return zkToast(isAr0 ? '⚠️ يجب إبقاء قسم واحد على الأقل، لا يمكن حذفه!' : '⚠️ At least one section must remain!');
-            }
             const item0 = arr0.find(x => String(x.id) === String(id));
             if (!item0) return;
             zkDialog({
@@ -7416,10 +7435,6 @@
         function _doDeleteCategory(id) {
             closeCatActionsModal();
             const arr = getCurrentListArray();
-            const isAr = (appLang === 'ar');
-            if (navLevel !== 'folder' && arr.length <= 1) {
-                return alert(isAr ? '⚠️ يجب إبقاء قسم واحد على الأقل، لا يمكن حذفه!' : '⚠️ At least one section must remain!');
-            }
             const item = arr.find(x => String(x.id) === String(id));
             if (!item) return;
 
@@ -7428,22 +7443,31 @@
 
             if (navLevel === 'main') {
                 categories = categories.filter(c => String(c.id) !== String(id));
-                currentMainCatId = categories[0].id;
-                currentSubCatId = categories[0].subCategories[0].id;
+                currentMainCatId = (categories[0]) ? categories[0].id : null;
+                currentSubCatId = (categories[0] && categories[0].subCategories && categories[0].subCategories[0]) ? categories[0].subCategories[0].id : null;
             } else if (navLevel === 'sub') {
                 const mainCat = getCurrentMainCat();
-                mainCat.subCategories = mainCat.subCategories.filter(s => String(s.id) !== String(id));
-                currentSubCatId = mainCat.subCategories[0].id;
+                if (mainCat && mainCat.subCategories) {
+                    mainCat.subCategories = mainCat.subCategories.filter(s => String(s.id) !== String(id));
+                    currentSubCatId = (mainCat.subCategories[0]) ? mainCat.subCategories[0].id : null;
+                }
             } else if (navLevel === 'topic') {
                 const subCat = getCurrentSubCat();
-                subCat.topics = subCat.topics.filter(tObj => String(tObj.id) !== String(id));
-                currentTopicId = subCat.topics[0].id;
+                if (subCat && subCat.topics) {
+                    subCat.topics = subCat.topics.filter(tObj => String(tObj.id) !== String(id));
+                    currentTopicId = (subCat.topics[0]) ? subCat.topics[0].id : null;
+                }
             } else if (navLevel === 'folder') {
                 const fNode = getFolderNode();
-                fNode.children = (fNode.children || []).filter(ch => String(ch.id) !== String(id));
+                if (fNode) {
+                    fNode.children = (fNode.children || []).filter(ch => String(ch.id) !== String(id));
+                }
             }
 
             localStorage.setItem('my_categories_v2', JSON.stringify(categories));
+            if (currentMainCatId) localStorage.setItem('current_main_cat', currentMainCatId);
+            if (currentSubCatId) localStorage.setItem('current_sub_cat', currentSubCatId);
+            if (currentTopicId) localStorage.setItem('current_topic_id', currentTopicId);
             saveCards();
             closeCatActionsModal();
             updateUI();
@@ -7534,10 +7558,6 @@
             if (selectedIds.length === 0) {
                 return alert(appLang === 'ar' ? 'حدد عنصراً واحداً على الأقل لحذفه!' : 'Select at least one item to delete!');
             }
-            const arr = getCurrentListArray();
-            if (navLevel !== 'folder' && selectedIds.length >= arr.length) {
-                return alert(appLang === 'ar' ? '⚠️ يجب إبقاء عنصر واحد على الأقل هنا!' : '⚠️ At least one item must remain here!');
-            }
             const msg = appLang === 'ar'
                 ? `هل أنت متأكد من حذف (${selectedIds.length}) عناصر محددة مع جميع محتوياتها؟ 🗑️`
                 : `Are you sure you want to delete (${selectedIds.length}) selected items and their contents? 🗑️`;
@@ -7548,41 +7568,48 @@
             const deckIdsToRemove = [];
             if (navLevel === 'main') {
                 categories.filter(c => selectedIds.includes(c.id)).forEach(c => {
-                    c.subCategories.forEach(sb => {
+                    (c.subCategories || []).forEach(sb => {
                         collectIds(sb).forEach(i => deckIdsToRemove.push(i));
                         if (sb.topics) sb.topics.forEach(tObj => collectIds(tObj).forEach(i => deckIdsToRemove.push(i)));
                     });
                 });
                 categories = categories.filter(c => !selectedIds.includes(c.id));
-                currentMainCatId = categories[0].id;
-                currentSubCatId = categories[0].subCategories[0].id;
+                currentMainCatId = (categories[0]) ? categories[0].id : null;
+                currentSubCatId = (categories[0] && categories[0].subCategories && categories[0].subCategories[0]) ? categories[0].subCategories[0].id : null;
             } else if (navLevel === 'sub') {
                 const mainCat = getCurrentMainCat();
-                mainCat.subCategories.filter(s => selectedIds.includes(s.id)).forEach(s => {
-                    collectIds(s).forEach(i => deckIdsToRemove.push(i));
-                    if (s.topics) s.topics.forEach(tObj => collectIds(tObj).forEach(i => deckIdsToRemove.push(i)));
-                });
-                mainCat.subCategories = mainCat.subCategories.filter(s => !selectedIds.includes(s.id));
-                currentSubCatId = mainCat.subCategories[0].id;
+                if (mainCat && mainCat.subCategories) {
+                    mainCat.subCategories.filter(s => selectedIds.includes(s.id)).forEach(s => {
+                        collectIds(s).forEach(i => deckIdsToRemove.push(i));
+                        if (s.topics) s.topics.forEach(tObj => collectIds(tObj).forEach(i => deckIdsToRemove.push(i)));
+                    });
+                    mainCat.subCategories = mainCat.subCategories.filter(s => !selectedIds.includes(s.id));
+                    currentSubCatId = (mainCat.subCategories[0]) ? mainCat.subCategories[0].id : null;
+                }
             } else if (navLevel === 'topic') {
                 const subCat = getCurrentSubCat();
-                subCat.topics.filter(tObj => selectedIds.includes(tObj.id)).forEach(tObj => collectIds(tObj).forEach(i => deckIdsToRemove.push(i)));
-                subCat.topics = subCat.topics.filter(tObj => !selectedIds.includes(tObj.id));
-                currentTopicId = subCat.topics[0].id;
+                if (subCat && subCat.topics) {
+                    subCat.topics.filter(tObj => selectedIds.includes(tObj.id)).forEach(tObj => collectIds(tObj).forEach(i => deckIdsToRemove.push(i)));
+                    subCat.topics = subCat.topics.filter(tObj => !selectedIds.includes(tObj.id));
+                    currentTopicId = (subCat.topics[0]) ? subCat.topics[0].id : null;
+                }
             } else if (navLevel === 'folder') {
                 const fNode = getFolderNode();
-                (fNode.children || []).filter(ch => selectedIds.includes(ch.id)).forEach(ch => collectIds(ch).forEach(i => deckIdsToRemove.push(i)));
-                fNode.children = (fNode.children || []).filter(ch => !selectedIds.includes(ch.id));
+                if (fNode) {
+                    (fNode.children || []).filter(ch => selectedIds.includes(ch.id)).forEach(ch => collectIds(ch).forEach(i => deckIdsToRemove.push(i)));
+                    fNode.children = (fNode.children || []).filter(ch => !selectedIds.includes(ch.id));
+                }
             }
 
             cards = cards.filter(c => !deckIdsToRemove.includes(c.subCatId));
             isSelectMode = false;
             selectedIds = [];
             localStorage.setItem('my_categories_v2', JSON.stringify(categories));
-            localStorage.setItem('current_main_cat', currentMainCatId);
-            localStorage.setItem('current_sub_cat', currentSubCatId);
-            localStorage.setItem('current_topic_id', currentTopicId);
+            if (currentMainCatId) localStorage.setItem('current_main_cat', currentMainCatId);
+            if (currentSubCatId) localStorage.setItem('current_sub_cat', currentSubCatId);
+            if (currentTopicId) localStorage.setItem('current_topic_id', currentTopicId);
             saveCards();
+            updateUI();
         }
 
         // ====== متغيرات ودوال تقليب وسحب الكروت (Swipe & Browse) ======
@@ -7966,6 +7993,16 @@
 
                     studyArea.innerHTML = `
                         ${quickWidgetHtml}
+                        ${categories.length === 0 ? `
+                            <div style="text-align:center; padding:50px 20px; color:#94a3b8; width:100%;">
+                                <div style="font-size:3.2rem; margin-bottom:12px;">📚</div>
+                                <div style="font-size:1.1rem; font-weight:800; color:#e2e8f0; margin-bottom:6px;">${isAr ? 'لا توجد أقسام رئيسية بعد' : 'No categories yet'}</div>
+                                <div style="font-size:0.84rem; color:#94a3b8; margin-bottom:18px;">${isAr ? 'ابدأ بإضافة قسمك الدراسي الأول لتنظيم كروتك' : 'Add your first study category to get started'}</div>
+                                <button onclick="openAddModal('cat')" style="background:linear-gradient(135deg, #4f46e5, #6366f1); color:white; border:none; padding:11px 24px; border-radius:12px; font-weight:800; font-size:0.9rem; cursor:pointer; box-shadow:0 4px 15px rgba(79,70,229,0.35);">
+                                    ➕ ${isAr ? 'إضافة قسم جديد' : 'Add New Category'}
+                                </button>
+                            </div>
+                        ` : `
                         <div class="cat-grid">
                             ${categories.map((c, idx) => {
                         const isSel = selectedIds.includes(c.id);
@@ -8004,17 +8041,28 @@
                                 `;
                     }).join('')}
                         </div>
+                        `}
                     `;
                 } else if (navLevel === 'sub') {
                     const mainCat = getCurrentMainCat();
+                    const subList = (mainCat && mainCat.subCategories) ? mainCat.subCategories : [];
                     topNav.innerHTML = isSelectMode ? selectBarHtml : `
                         <button class="back-btn" onclick="goBackNav()">${t('backBtn')}</button>
-                        <span style="font-size:0.85rem;">${trName(mainCat.name)}</span>
+                        <span style="font-size:0.85rem;">${trName(mainCat ? mainCat.name : '')}</span>
                         ${toolsHtml}
                     `;
-                    studyArea.innerHTML = `
+                    studyArea.innerHTML = subList.length === 0 ? `
+                        <div style="text-align:center; padding:50px 20px; color:#94a3b8; width:100%;">
+                            <div style="font-size:3.2rem; margin-bottom:12px;">📂</div>
+                            <div style="font-size:1.1rem; font-weight:800; color:#e2e8f0; margin-bottom:6px;">${isAr ? 'لا توجد مجلدات في هذا القسم' : 'No folders in this category'}</div>
+                            <div style="font-size:0.84rem; color:#94a3b8; margin-bottom:18px;">${isAr ? 'تم حذف جميع المجلدات. يمكنك إنشاء مجلد جديد من الزر أدناه' : 'All folders removed. You can create a new folder below'}</div>
+                            <button onclick="openAddModal('cat')" style="background:linear-gradient(135deg, #4f46e5, #6366f1); color:white; border:none; padding:11px 24px; border-radius:12px; font-weight:800; font-size:0.9rem; cursor:pointer; box-shadow:0 4px 15px rgba(79,70,229,0.35);">
+                                ➕ ${isAr ? 'إضافة مجلد جديد' : 'Add New Folder'}
+                            </button>
+                        </div>
+                    ` : `
                         <div class="cat-grid">
-                            ${mainCat.subCategories.map((s, idx) => {
+                            ${subList.map((s, idx) => {
                         const isSel = selectedIds.includes(s.id);
                         let deckIds = collectIds(s);
                         if (mainCat.isLangCategory) {
@@ -8055,14 +8103,24 @@
                 } else if (navLevel === 'topic') {
                     const subCat = getCurrentSubCat();
                     ensureLanguageTopics(subCat);
+                    const topicList = (subCat && subCat.topics) ? subCat.topics : [];
                     topNav.innerHTML = isSelectMode ? selectBarHtml : `
                         <button class="back-btn" onclick="goBackNav()">${t('backBtn')}</button>
-                        <span style="font-size:0.85rem;">${trName(subCat.name)}</span>
+                        <span style="font-size:0.85rem;">${trName(subCat ? subCat.name : '')}</span>
                         ${toolsHtml}
                     `;
-                    studyArea.innerHTML = `
+                    studyArea.innerHTML = topicList.length === 0 ? `
+                        <div style="text-align:center; padding:50px 20px; color:#94a3b8; width:100%;">
+                            <div style="font-size:3.2rem; margin-bottom:12px;">📌</div>
+                            <div style="font-size:1.1rem; font-weight:800; color:#e2e8f0; margin-bottom:6px;">${isAr ? 'لا توجد موضوعات هنا بعد' : 'No topics here yet'}</div>
+                            <div style="font-size:0.84rem; color:#94a3b8; margin-bottom:18px;">${isAr ? 'اضغط أدناه لإضافة موضوع أو درس جديد' : 'Tap below to add a new topic or lesson'}</div>
+                            <button onclick="openAddModal('cat')" style="background:linear-gradient(135deg, #4f46e5, #6366f1); color:white; border:none; padding:11px 24px; border-radius:12px; font-weight:800; font-size:0.9rem; cursor:pointer; box-shadow:0 4px 15px rgba(79,70,229,0.35);">
+                                ➕ ${isAr ? 'إضافة موضوع جديد' : 'Add New Topic'}
+                            </button>
+                        </div>
+                    ` : `
                         <div class="cat-grid">
-                            ${subCat.topics.map((tObj, idx) => {
+                            ${topicList.map((tObj, idx) => {
                         const tIds = collectIds(tObj);
                         const count = cards.filter(c => tIds.includes(c.subCatId)).length;
                         const tFolders = tObj.children ? tObj.children.length : 0;
