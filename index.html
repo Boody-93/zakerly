@@ -457,6 +457,47 @@
             background-color: #10b981;
         }
 
+        .btn-mastered {
+            background: linear-gradient(135deg, #059669, #047857) !important;
+            border: 1px solid rgba(16, 185, 129, 0.4) !important;
+        }
+
+        .btn-never-repeat {
+            width: 100%;
+            margin-top: 10px;
+            padding: 11px 16px;
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(5, 150, 105, 0.28));
+            border: 1.5px solid rgba(16, 185, 129, 0.45);
+            color: #10b981;
+            border-radius: 14px;
+            font-size: 0.88rem;
+            font-weight: 800;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            font-family: inherit;
+        }
+
+        .dark-mode .btn-never-repeat {
+            color: #34d399;
+            border-color: rgba(52, 211, 153, 0.45);
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.35));
+        }
+
+        .btn-never-repeat:hover {
+            background: #10b981;
+            color: #ffffff;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 18px rgba(16, 185, 129, 0.35);
+        }
+
+        .btn-never-repeat:active {
+            transform: scale(0.97);
+        }
+
         .add-section {
             background: white;
             padding: 12px;
@@ -5019,6 +5060,15 @@
                     <span>بعد يوم</span>
                 </button>
             </div>
+            <button type="button" class="btn-never-repeat" id="btn-never-repeat-forced" onclick="rateCard('mastered')">
+                <span>👑</span>
+                <span>حفظته خلاص (لا تكرره ثانية)</span>
+            </button>
+            <div style="margin-top: 10px; text-align: center;">
+                <button type="button" onclick="disableForcedQuizPermanently()" style="background: none; border: none; color: #94a3b8; font-size: 0.75rem; cursor: pointer; text-decoration: underline;">
+                    🔕 تعطيل المراجعات الإجبارية التلقائية نهائياً
+                </button>
+            </div>
         </div>
 
         <!-- 4. الشاشة العادية للتطبيق -->
@@ -5047,6 +5097,8 @@
                     style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.4); padding: 4px 9px; border-radius: 20px; font-weight: 700; cursor: pointer; font-size: 0.8rem;">🌧️</button>
                 <button id="autospeak-toggle-btn" onclick="toggleAutoSpeak()" title="النطق التلقائي Auto-Speak"
                     style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.4); padding: 4px 9px; border-radius: 20px; font-weight: 700; cursor: pointer; font-size: 0.8rem;">🔇</button>
+                <button id="forced-quiz-toggle-btn" onclick="toggleForcedQuizMode()" title="المراجعة الإجبارية التلقائية"
+                    style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.4); padding: 4px 9px; border-radius: 20px; font-weight: 700; cursor: pointer; font-size: 0.8rem;">🔕</button>
                 <button id="theme-palette-btn" onclick="openThemePaletteModal()" title="ألوان وثيمات التطبيق 🎨"
                     style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.4); padding: 4px 9px; border-radius: 20px; font-weight: 700; cursor: pointer; font-size: 0.8rem;">🎨</button>
                 <button id="theme-toggle-btn" onclick="toggleDarkMode()" title="الوضع الليلي Dark Mode"
@@ -5436,6 +5488,48 @@
         let currentCard = null;
         let isAppClosed = false;
         let alreadyNotifiedId = null;
+        let isForcedQuizEnabled = localStorage.getItem('zk_forced_quiz_enabled') === 'true'; // الافتراضي معطلة لمنع الإزعاج
+
+        function updateForcedQuizBtnUI() {
+            const btn = document.getElementById('forced-quiz-toggle-btn');
+            if (!btn) return;
+            const isAr = (appLang === 'ar');
+            if (isForcedQuizEnabled) {
+                btn.innerText = '🔔';
+                btn.title = isAr ? 'المراجعة الإجبارية: مفعلة (اضغط للتعطيل)' : 'Auto quiz: ON (click to disable)';
+                btn.style.background = 'rgba(16, 185, 129, 0.35)';
+                btn.style.borderColor = 'rgba(16, 185, 129, 0.6)';
+            } else {
+                btn.innerText = '🔕';
+                btn.title = isAr ? 'المراجعة الإجبارية: معطلة (لا إزعاج)' : 'Auto quiz: OFF (do not disturb)';
+                btn.style.background = 'rgba(255, 255, 255, 0.2)';
+                btn.style.borderColor = 'rgba(255, 255, 255, 0.4)';
+            }
+        }
+
+        function toggleForcedQuizMode() {
+            isForcedQuizEnabled = !isForcedQuizEnabled;
+            localStorage.setItem('zk_forced_quiz_enabled', isForcedQuizEnabled ? 'true' : 'false');
+            updateForcedQuizBtnUI();
+            const isAr = (appLang === 'ar');
+            if (isForcedQuizEnabled) {
+                zkToast(isAr ? '🔔 تم تفعيل المراجعة التلقائية للكروت المجدولة' : '🔔 Auto review enabled for scheduled cards');
+            } else {
+                document.getElementById('forced-popup')?.classList.remove('active');
+                document.getElementById('mobile-notif')?.classList.remove('show');
+                zkToast(isAr ? '🔕 تم إيقاف المراجعة الإجبارية التلقائية نهائياً' : '🔕 Auto mandatory review disabled completely');
+            }
+        }
+
+        function disableForcedQuizPermanently() {
+            isForcedQuizEnabled = false;
+            localStorage.setItem('zk_forced_quiz_enabled', 'false');
+            updateForcedQuizBtnUI();
+            document.getElementById('forced-popup')?.classList.remove('active');
+            document.getElementById('mobile-notif')?.classList.remove('show');
+            const isAr = (appLang === 'ar');
+            zkToast(isAr ? '🔕 تم تعطيل المراجعات الإجبارية التلقائية بنجاح!' : '🔕 Auto mandatory reviews disabled successfully!');
+        }
 
         // ====== قاموس ترجمة التطبيق بالكامل (عربي / إنجليزي) ======
         const UI_TEXT = {
@@ -7157,20 +7251,20 @@
 
             // 1. فحص الطوارئ والجدولة لأي كارت حان موعده
             const now = Date.now();
-            const urgentCard = cards.find(c => (c.isHard || c.plan || c.isScheduled) && c.nextReview <= now && !c.done);
+            const urgentCard = cards.find(c => (c.plan || c.isScheduled) && c.nextReview <= now && !c.done);
 
             if (urgentCard) {
-                currentCard = urgentCard;
                 if (alreadyNotifiedId !== urgentCard.id) {
                     alreadyNotifiedId = urgentCard.id;
                     triggerUrgentAlert(urgentCard);
                 }
-                if (!isAppClosed) {
+                if (isForcedQuizEnabled && !isAppClosed) {
+                    currentCard = urgentCard;
                     showForcedPopup(urgentCard);
+                    return;
                 }
-                return;
             } else {
-                document.getElementById('forced-popup').classList.remove('active');
+                document.getElementById('forced-popup')?.classList.remove('active');
             }
 
             // 2. لو المستخدم في شاشات الأقسام والفولدرات الفرعية
@@ -7758,6 +7852,13 @@
                             <div class="srs-btn-txt">
                                 <b>${t('easyBtn')}</b>
                                 <span>${srs.easyText}</span>
+                            </div>
+                        </button>
+                        <button class="btn-srs btn-mastered" onclick="rateCard('mastered')" title="${isAr ? 'حفظته خلاص ولن يتكرر ثانية' : 'Mastered! Never repeat'}">
+                            <span class="srs-btn-icon">👑</span>
+                            <div class="srs-btn-txt">
+                                <b>${isAr ? 'حفظته خلاص' : 'Mastered'}</b>
+                                <span>${isAr ? 'لن يتكرر' : 'No repeat'}</span>
                             </div>
                         </button>
                     </div>
@@ -9128,6 +9229,7 @@
             }
 
             applyColorTheme(localStorage.getItem('zk_app_theme') || 'theme-indigo');
+            updateForcedQuizBtnUI();
         }
 
         function toggleDarkMode() {
@@ -9221,6 +9323,9 @@
 
         window.addEventListener('DOMContentLoaded', () => {
             applyThemeAndAudioUI();
+            updateForcedQuizBtnUI();
+            document.getElementById('forced-popup')?.classList.remove('active');
+            document.getElementById('mobile-notif')?.classList.remove('show');
             const area = document.getElementById('study-area');
             if (area) studyObserver.observe(area, { childList: true });
         });
@@ -9451,7 +9556,9 @@
         });
 
         function triggerUrgentAlert(card) {
-            playAlarmSound();
+            if (isForcedQuizEnabled) {
+                playAlarmSound();
+            }
             const notifText = document.getElementById('notif-text');
             if (notifText) notifText.innerText = `${t('notifBody')} "${card.front}"`;
             const mobNotif = document.getElementById('mobile-notif');
@@ -9508,6 +9615,8 @@
                 document.getElementById('forced-helper-btns').style.display = 'flex';
                 document.getElementById('forced-feedback').style.display = 'none';
                 document.getElementById('forced-srs-btns').classList.remove('show');
+                const btnNever = document.getElementById('btn-never-repeat-forced');
+                if (btnNever) btnNever.style.display = 'none';
             }
         }
 
@@ -9531,6 +9640,8 @@
                 currentCard.nextReview = Date.now() + (5 * 60 * 1000);
                 alreadyNotifiedId = null;
             }
+            const btnNever = document.getElementById('btn-never-repeat-forced');
+            if (btnNever) btnNever.style.display = 'none';
             document.getElementById('mobile-notif')?.classList.remove('show');
             document.getElementById('forced-popup')?.classList.remove('active');
             saveCards();
@@ -9543,6 +9654,8 @@
                 currentCard.nextReview = Date.now() + (30 * 60 * 1000);
                 alreadyNotifiedId = null;
             }
+            const btnNever = document.getElementById('btn-never-repeat-forced');
+            if (btnNever) btnNever.style.display = 'none';
             document.getElementById('mobile-notif')?.classList.remove('show');
             document.getElementById('forced-popup')?.classList.remove('active');
             saveCards();
@@ -9576,6 +9689,8 @@
                 document.getElementById('btn-check-answer').style.display = 'none';
                 document.getElementById('forced-helper-btns').style.display = 'none';
                 document.getElementById('forced-srs-btns').classList.add('show');
+                const btnNever = document.getElementById('btn-never-repeat-forced');
+                if (btnNever) btnNever.style.display = 'flex';
             } else {
                 feedback.style.background = '#fee2e2';
                 feedback.style.color = '#991b1b';
@@ -10095,6 +10210,7 @@
         toggleAppLang = function () {
             origToggleLang();
             updateStreakUI();
+            updateForcedQuizBtnUI();
         };
 
         function rateCard(difficulty) {
@@ -10103,11 +10219,26 @@
             if (!c) return;
 
             document.getElementById('mobile-notif').classList.remove('show');
+            const btnNever = document.getElementById('btn-never-repeat-forced');
+            if (btnNever) btnNever.style.display = 'none';
             alreadyNotifiedId = null;
 
             c.reviews = (c.reviews || 0) + 1;
             c.lastReview = now;
-            if (difficulty === 'hard') {
+            let handled = false;
+
+            if (difficulty === 'mastered') {
+                c.isHard = false;
+                c.isScheduled = false;
+                delete c.plan;
+                c.done = true;
+                c.nextReview = SRS_FAR;
+                c.level = 2;
+                playFeedbackSound('easy');
+                triggerHaptic([30, 50, 30]);
+                zkToast(appLang === 'ar' ? '👑 تم حفظ وإتقان الكارت ولن يتكرر ثانية!' : '👑 Card mastered! It will not repeat.');
+                handled = true;
+            } else if (difficulty === 'hard') {
                 c.isHard = true;
                 c.lapses = (c.lapses || 0) + 1;
                 playFeedbackSound('hard');
@@ -10123,26 +10254,27 @@
             }
             recordReviewAchievements();
 
-            let handled = false;
-            // كارت عليه جدولة يدوية: التقييم مش بيغيّر الميعاد، الميعاد هو اللي حددته انت
-            if (srsPlanActive(c)) {
-                const p = c.plan;
-                p.left -= 1;
-                p.shown = (p.shown || 0) + 1;
-                if (p.left > 0) {
-                    c.nextReview = now + p.every;
-                    handled = true;
-                } else {
-                    const after = p.after;
-                    delete c.plan;
-                    if (after === 'stop') {
-                        c.done = true;
-                        c.isHard = false;
-                        c.nextReview = SRS_FAR;
-                        c.level = Math.max(c.level || 0, 2);
+            if (!handled) {
+                // كارت عليه جدولة يدوية: التقييم مش بيغيّر الميعاد، الميعاد هو اللي حددته انت
+                if (srsPlanActive(c)) {
+                    const p = c.plan;
+                    p.left -= 1;
+                    p.shown = (p.shown || 0) + 1;
+                    if (p.left > 0) {
+                        c.nextReview = now + p.every;
                         handled = true;
+                    } else {
+                        const after = p.after;
+                        delete c.plan;
+                        if (after === 'stop') {
+                            c.done = true;
+                            c.isHard = false;
+                            c.nextReview = SRS_FAR;
+                            c.level = Math.max(c.level || 0, 2);
+                            handled = true;
+                        }
+                        // after === 'auto': يكمل بالنظام التلقائي بناءً على تقييم آخر مرة
                     }
-                    // after === 'auto': يكمل بالنظام التلقائي بناءً على تقييم آخر مرة
                 }
             }
 
@@ -10343,7 +10475,7 @@
 
         setInterval(() => {
             const now = Date.now();
-            const hasUrgent = cards.some(c => (c.isHard || c.plan || c.isScheduled) && c.nextReview <= now && !c.done);
+            const hasUrgent = isForcedQuizEnabled && cards.some(c => (c.plan || c.isScheduled) && c.nextReview <= now && !c.done);
             const currentDueLen = (navLevel === 'study') ? getDueCards().length : -1;
             if (hasUrgent || (navLevel === 'study' && currentDueLen !== lastDueCount)) {
                 const cardEl = document.getElementById('flashcard');
