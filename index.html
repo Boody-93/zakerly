@@ -10143,7 +10143,7 @@
             const targetLang = isArabic ? 'ar' : (subCat && subCat.langCode && subCat.langCode !== 'auto' ? subCat.langCode : 'en');
             const bestVoice = (typeof getBestVoiceForLang === 'function') ? getBestVoiceForLang(targetLang) : null;
 
-            if (bestVoice && 'speechSynthesis' in window && typeof playSpeechChunks === 'function') {
+            if (bestVoice && typeof isHighQualityVoice === 'function' && isHighQualityVoice(bestVoice) && 'speechSynthesis' in window && typeof playSpeechChunks === 'function') {
                 const chunks = chunkTextForSpeech(cleanText, 160);
                 playSpeechChunks(chunks, targetLang, bestVoice, rate || 1.0, onEnd);
                 return;
@@ -11163,6 +11163,18 @@
             return matching.find(v => v.default) || matching[0];
         }
 
+        function isHighQualityVoice(voice) {
+            if (!voice) return false;
+            const name = (voice.name || '').toLowerCase();
+            // مؤشرات الأصوات العصبية والطبيعية عالية الدقة
+            if (name.includes('natural') || name.includes('online') || name.includes('neural')) return true;
+            if (name.includes('google') || name.includes('premium') || name.includes('enhanced') || name.includes('siri')) return true;
+            const allEdgeNames = Object.values(EDGE_NEURAL_VOICES_REGISTRY).flat().map(n => n.toLowerCase());
+            if (allEdgeNames.some(edgeName => name.includes(edgeName))) return true;
+            if (voice.localService === false) return true;
+            return false;
+        }
+
         function stopAllSpeech() {
             if (activeTTSAudio) {
                 try { activeTTSAudio.pause(); } catch (e) { }
@@ -11195,7 +11207,6 @@
                 const textChunk = chunks[chunkIndex++];
                 const u = new SpeechSynthesisUtterance(textChunk);
                 u.lang = locale;
-                // وتيرة الحديث الطبيعي (0.95 للنطق العادي لإضفاء نبرة بشرية مريحة، و0.55 للسلحفاة)
                 u.rate = (rate === 1.0) ? 0.95 : rate;
                 u.pitch = 1.0;
                 if (voice) u.voice = voice;
@@ -11214,57 +11225,73 @@
         }
 
         function fallbackToHighQualityAudio(cleanText, targetLang, rate = 1.0, onEndCallback = null) {
-            const cacheKey = `${targetLang}_${rate}_${cleanText}`;
-            if (zkAudioCache.has(cacheKey)) {
-                const cachedAudio = zkAudioCache.get(cacheKey);
-                try {
-                    cachedAudio.currentTime = 0;
-                    cachedAudio.playbackRate = rate;
-                    activeTTSAudio = cachedAudio;
-                    if (onEndCallback) cachedAudio.onended = onEndCallback;
-                    cachedAudio.play().catch(() => {});
-                    return;
-                } catch (e) { }
+            const chunks = chunkTextForSpeech(cleanText, 160);
+            if (!chunks || chunks.length === 0) {
+                if (onEndCallback) onEndCallback();
+                return;
             }
 
-            const shortText = cleanText.length > 180 ? cleanText.substring(0, 180) : cleanText;
-            const url = `https://translate.google.com/translate_tts?client=gtx&ie=UTF-8&tl=${encodeURIComponent(targetLang)}&q=${encodeURIComponent(shortText)}`;
-            
-            const audio = new Audio(url);
-            audio.referrerPolicy = "no-referrer";
-            audio.playbackRate = rate;
-            activeTTSAudio = audio;
-
-            audio.onended = () => {
-                if (activeTTSAudio === audio) activeTTSAudio = null;
-                if (onEndCallback) onEndCallback();
-            };
-            audio.onerror = () => {
-                if (activeTTSAudio === audio) activeTTSAudio = null;
-                if ('speechSynthesis' in window) {
-                    const u = new SpeechSynthesisUtterance(cleanText);
-                    u.lang = LANG_LOCALES[targetLang] || targetLang;
-                    u.rate = (rate === 1.0) ? 0.95 : rate;
-                    if (onEndCallback) u.onend = onEndCallback;
-                    window.speechSynthesis.speak(u);
-                } else if (onEndCallback) {
-                    onEndCallback();
+            let chunkIdx = 0;
+            function playNextChunk() {
+                if (chunkIdx >= chunks.length) {
+                    activeTTSAudio = null;
+                    if (onEndCallback) onEndCallback();
+                    return;
                 }
-            };
 
-            audio.play().then(() => {
-                zkAudioCache.set(cacheKey, audio);
-            }).catch(() => {
-                if ('speechSynthesis' in window) {
-                    const u = new SpeechSynthesisUtterance(cleanText);
-                    u.lang = LANG_LOCALES[targetLang] || targetLang;
-                    u.rate = (rate === 1.0) ? 0.95 : rate;
-                    if (onEndCallback) u.onend = onEndCallback;
-                    window.speechSynthesis.speak(u);
-                } else if (onEndCallback) {
-                    onEndCallback();
+                const currentChunk = chunks[chunkIdx++];
+                const cacheKey = `${targetLang}_${rate}_${currentChunk}`;
+
+                if (zkAudioCache.has(cacheKey)) {
+                    const cachedAudio = zkAudioCache.get(cacheKey);
+                    try {
+                        cachedAudio.currentTime = 0;
+                        cachedAudio.playbackRate = rate;
+                        activeTTSAudio = cachedAudio;
+                        cachedAudio.onended = () => playNextChunk();
+                        cachedAudio.onerror = () => playNextChunk();
+                        cachedAudio.play().catch(() => playNextChunk());
+                        return;
+                    } catch (e) { }
                 }
-            });
+
+                const url = `https://translate.google.com/translate_tts?client=gtx&ie=UTF-8&tl=${encodeURIComponent(targetLang)}&q=${encodeURIComponent(currentChunk)}`;
+                const audio = new Audio(url);
+                audio.referrerPolicy = "no-referrer";
+                audio.playbackRate = rate;
+                activeTTSAudio = audio;
+
+                audio.onended = () => {
+                    playNextChunk();
+                };
+                audio.onerror = () => {
+                    if ('speechSynthesis' in window) {
+                        const u = new SpeechSynthesisUtterance(currentChunk);
+                        u.lang = LANG_LOCALES[targetLang] || targetLang;
+                        u.rate = (rate === 1.0) ? 0.95 : rate;
+                        u.onend = u.onerror = () => playNextChunk();
+                        window.speechSynthesis.speak(u);
+                    } else {
+                        playNextChunk();
+                    }
+                };
+
+                audio.play().then(() => {
+                    zkAudioCache.set(cacheKey, audio);
+                }).catch(() => {
+                    if ('speechSynthesis' in window) {
+                        const u = new SpeechSynthesisUtterance(currentChunk);
+                        u.lang = LANG_LOCALES[targetLang] || targetLang;
+                        u.rate = (rate === 1.0) ? 0.95 : rate;
+                        u.onend = u.onerror = () => playNextChunk();
+                        window.speechSynthesis.speak(u);
+                    } else {
+                        playNextChunk();
+                    }
+                });
+            }
+
+            playNextChunk();
         }
 
         function speakCurrentCard(side, event, rate = 1.0) {
@@ -11288,28 +11315,14 @@
             const targetLang = isArabic ? 'ar' : (subCat && subCat.langCode && subCat.langCode !== 'auto' ? subCat.langCode : 'en');
             const chunks = chunkTextForSpeech(cleanText, 160);
 
-            // 1. الأولوية: أصوات مايكروسوفت الذكية Edge Neural والأصوات الطبيعية
+            // 1. إذا كان الهاتف يحتوي على صوت عصبي/طبيعي بشري حقيقي (مثل Edge Natural أو Google Cloud)
             const bestVoice = getBestVoiceForLang(targetLang);
-            if (bestVoice && 'speechSynthesis' in window) {
+            if (bestVoice && isHighQualityVoice(bestVoice) && 'speechSynthesis' in window) {
                 playSpeechChunks(chunks, targetLang, bestVoice, rate);
                 return;
             }
 
-            // 2. إذا كانت الأصوات قيد التحميل في المتصفح، انتظر للحظة وجرب مجدداً
-            const allVoices = refreshAvailableVoices();
-            if (allVoices.length === 0 && 'speechSynthesis' in window) {
-                setTimeout(() => {
-                    const delayedVoice = getBestVoiceForLang(targetLang);
-                    if (delayedVoice) {
-                        playSpeechChunks(chunks, targetLang, delayedVoice, rate);
-                    } else {
-                        fallbackToHighQualityAudio(cleanText, targetLang, rate);
-                    }
-                }, 120);
-                return;
-            }
-
-            // 3. الصوت البديل عالي الدقة (24kHz)
+            // 2. إذا لم يتوفر صوت بشري عالي الجودة في نظام الهاتف، يتم تشغيل الصوت البشري عالي النقاء مباشرة داخل التطبيق
             fallbackToHighQualityAudio(cleanText, targetLang, rate);
         }
 
@@ -11317,7 +11330,7 @@
         function speakWithNaturalVoice(cleanText, langCode, rate = 0.95) {
             const bestVoice = getBestVoiceForLang(langCode);
             const chunks = chunkTextForSpeech(cleanText, 160);
-            if (bestVoice && 'speechSynthesis' in window) {
+            if (bestVoice && isHighQualityVoice(bestVoice) && 'speechSynthesis' in window) {
                 playSpeechChunks(chunks, langCode, bestVoice, rate);
             } else {
                 fallbackToHighQualityAudio(cleanText, langCode, rate);
@@ -14023,8 +14036,13 @@
         updateSpeakerBtn(true);
         toast(T('🔊 جاري قراءة الدرس بصوت طبيعي واضح...', '🔊 Reading lesson with natural voice...'));
 
-        if (typeof playSpeechChunks === 'function') {
+        if (bestVoice && typeof isHighQualityVoice === 'function' && isHighQualityVoice(bestVoice) && typeof playSpeechChunks === 'function') {
             playSpeechChunks(chunks, langCode, bestVoice, 0.95, () => {
+                isSpeakingLesson = false;
+                updateSpeakerBtn(false);
+            });
+        } else if (typeof fallbackToHighQualityAudio === 'function') {
+            fallbackToHighQualityAudio(cleanText, langCode, 0.95, () => {
                 isSpeakingLesson = false;
                 updateSpeakerBtn(false);
             });
