@@ -1979,6 +1979,52 @@
         .audio-pill-turtle:hover {
             transform: scale(1.2);
         }
+
+        /* شريط فلترة نوع المحتوى (كلمات / جمل) */
+        .zk-content-filter-bar {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 10px 10px;
+            background: transparent;
+            overflow-x: auto;
+            scrollbar-width: none;
+            width: 100%;
+        }
+        .zk-content-filter-bar::-webkit-scrollbar {
+            display: none;
+        }
+        .zk-filter-pill {
+            background: rgba(255, 255, 255, 0.06);
+            color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            padding: 5px 13px;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .zk-filter-pill:active {
+            transform: scale(0.96);
+        }
+        .zk-filter-pill.active {
+            background: linear-gradient(135deg, #4f46e5, #6366f1);
+            color: #ffffff;
+            border-color: #818cf8;
+            box-shadow: 0 2px 10px rgba(99, 102, 241, 0.35);
+        }
+        .zk-filter-pill[data-filter="sentences"].active {
+            background: linear-gradient(135deg, #0284c7, #06b6d4);
+            color: #ffffff;
+            border-color: #38bdf8;
+            box-shadow: 0 2px 10px rgba(6, 182, 212, 0.35);
+        }
     </style>
     <style id="zk-theme">
         :root {}
@@ -6381,11 +6427,23 @@
         }
 
         // مذاكرة الكروت الموجودة مباشرة داخل المجلد الحالي (اللي ليه فروع)
-        function enterFolderOwnCards() {
+        function enterFolderWithFilter(filter = 'all') {
             pushNavHistory('study');
             studyDeckOverride = getFolderNode().id;
             navLevel = 'study';
+            studyContentFilter = filter;
+            currentCardIndex = 0;
             updateUI();
+        }
+
+        function enterFolderOwnCards() {
+            enterFolderWithFilter('all');
+        }
+
+        function openDeckWithFilter(filter = 'all') {
+            const mainCat = getCurrentMainCat();
+            if (!mainCat) return;
+            openDeckById(mainCat.id, true, filter);
         }
 
         function goToHomeScreen() {
@@ -6393,6 +6451,7 @@
             navLevel = 'main';
             folderPath = [];
             studyDeckOverride = null;
+            studyContentFilter = 'all';
             document.getElementById('manage-modal')?.classList.remove('active');
             updateUI();
             try {
@@ -6411,6 +6470,7 @@
             const mainCat = getCurrentMainCat();
             const baseBack = () => { navLevel = (mainCat && mainCat.isLangCategory) ? 'topic' : 'sub'; };
             if (navLevel === 'study') {
+                studyContentFilter = 'all';
                 if (studyDeckOverride) {
                     const wasMainDeck = (mainCat && studyDeckOverride === mainCat.id);
                     studyDeckOverride = null;
@@ -6586,7 +6646,7 @@
             return null;
         }
 
-        function openDeckById(deckId, resetMode) {
+        function openDeckById(deckId, resetMode, filter = 'all') {
             const loc = locateDeck(deckId);
             if (!loc) return false;
             pushNavHistory('deck');
@@ -6603,6 +6663,8 @@
                 studyDeckOverride = deckId;
             }
             navLevel = 'study';
+            studyContentFilter = filter;
+            currentCardIndex = 0;
             if (resetMode) studyMode = 'cards';
             persistNavState();
             closeGlobalSearch();
@@ -7337,12 +7399,29 @@
         }
 
         let favOnlyFilter = false;
+        let studyContentFilter = 'all'; // 'all' | 'words' | 'sentences'
+
+        function setStudyContentFilter(filter) {
+            studyContentFilter = filter;
+            currentCardIndex = 0;
+            if (studyMode !== 'cards' && typeof switchStudyMode === 'function') {
+                switchStudyMode(studyMode);
+            } else {
+                updateUI();
+            }
+        }
 
         function updateFavFilterBtnUI() {
             const btn = document.getElementById('btn-fav-filter');
             if (!btn) return;
             const isAr = (appLang === 'ar');
-            const favCount = cards.filter(c => c.subCatId === getActiveDeckId() && c.isFav).length;
+            const activeDeck = getActiveDeckId();
+            const favCount = cards.filter(c => {
+                if (c.subCatId !== activeDeck || !c.isFav) return false;
+                if (studyContentFilter === 'words' && c.kind === 'sentence') return false;
+                if (studyContentFilter === 'sentences' && c.kind !== 'sentence') return false;
+                return true;
+            }).length;
             btn.innerText = `${favOnlyFilter ? '⭐' : '☆'} ${isAr ? 'المفضلة' : 'Favs'} (${favCount})`;
             btn.style.background = favOnlyFilter ? '#fef3c7' : 'white';
             btn.style.color = favOnlyFilter ? '#b45309' : '#475569';
@@ -7350,7 +7429,13 @@
         }
 
         function toggleFavFilter() {
-            const favCount = cards.filter(c => c.subCatId === getActiveDeckId() && c.isFav).length;
+            const activeDeck = getActiveDeckId();
+            const favCount = cards.filter(c => {
+                if (c.subCatId !== activeDeck || !c.isFav) return false;
+                if (studyContentFilter === 'words' && c.kind === 'sentence') return false;
+                if (studyContentFilter === 'sentences' && c.kind !== 'sentence') return false;
+                return true;
+            }).length;
             if (!favOnlyFilter && favCount === 0) {
                 return alert(appLang === 'ar' ? '⭐ اضغط على النجمة فوق أي كارت الأول لإضافته للمفضلة!' : '⭐ Tap the star on any card first to add it to favorites!');
             }
@@ -7375,7 +7460,13 @@
         function getCurrentSubCatCards() {
             const activeDeck = getActiveDeckId();
             updateFavFilterBtnUI();
-            return cards.filter(card => card.subCatId === activeDeck && (!favOnlyFilter || card.isFav));
+            return cards.filter(card => {
+                if (card.subCatId !== activeDeck) return false;
+                if (favOnlyFilter && !card.isFav) return false;
+                if (studyContentFilter === 'words' && card.kind === 'sentence') return false;
+                if (studyContentFilter === 'sentences' && card.kind !== 'sentence') return false;
+                return true;
+            });
         }
 
         function getDueCards() {
@@ -8029,7 +8120,13 @@
         function resetTopicCardsNow() {
             const activeDeck = getActiveDeckId();
             cards.forEach(c => {
-                if (c.subCatId === activeDeck) { c.nextReview = Date.now(); delete c.plan; c.done = false; }
+                if (c.subCatId === activeDeck) {
+                    if (studyContentFilter === 'words' && c.kind === 'sentence') return;
+                    if (studyContentFilter === 'sentences' && c.kind !== 'sentence') return;
+                    c.nextReview = Date.now();
+                    delete c.plan;
+                    c.done = false;
+                }
             });
             currentCardIndex = 0;
             saveCards();
@@ -8129,6 +8226,69 @@
                 if (currentCardIndex > 0) currentCardIndex--;
                 saveCards();
             });
+        }
+
+        function renderNodeStudyTiles(nodeId, alignDir, isAr, onStartStudy) {
+            const allCards = cards.filter(c => c.subCatId === nodeId);
+            if (allCards.length === 0) return '';
+
+            const wordCards = allCards.filter(c => c.kind !== 'sentence');
+            const sentenceCards = allCards.filter(c => c.kind === 'sentence');
+            const now = Date.now();
+            const wordDue = wordCards.filter(c => c.nextReview <= now).length;
+            const sentenceDue = sentenceCards.filter(c => c.nextReview <= now).length;
+
+            if (wordCards.length > 0 && sentenceCards.length > 0) {
+                return `
+                    <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:14px; width:100%;">
+                        <div class="folder-own-tile" onclick="${onStartStudy}('words')" style="background:linear-gradient(135deg, #4338ca, #6366f1); margin:0;">
+                            <div style="font-size:1.45rem;">🃏</div>
+                            <div style="flex:1; text-align:${alignDir};">
+                                <div style="font-weight:800; font-size:0.92rem; color:white;">${isAr ? 'مذاكرة الكلمات والمصطلحات' : 'Study Words & Vocab'}</div>
+                                <div style="font-size:0.75rem; color:#e0e7ff; margin-top:2px;">${wordCards.length} ${isAr ? 'كارت' : 'cards'}${wordDue > 0 ? ` · ${wordDue} ${isAr ? 'للمراجعة ⚡' : 'due ⚡'}` : ''}</div>
+                            </div>
+                            <span style="font-weight:800; font-size:0.8rem; background:rgba(255,255,255,0.18); color:white; padding:5px 12px; border-radius:8px;">${isAr ? 'ابدأ ➔' : 'Study ➔'}</span>
+                        </div>
+                        <div class="folder-own-tile" onclick="${onStartStudy}('sentences')" style="background:linear-gradient(135deg, #0369a1, #0ea5e9); margin:0;">
+                            <div style="font-size:1.45rem;">💬</div>
+                            <div style="flex:1; text-align:${alignDir};">
+                                <div style="font-weight:800; font-size:0.92rem; color:white;">${isAr ? 'مذاكرة الجمل وسياق الكلام' : 'Study Sentences & Context'}</div>
+                                <div style="font-size:0.75rem; color:#e0f2fe; margin-top:2px;">${sentenceCards.length} ${isAr ? 'جملة' : 'sentences'}${sentenceDue > 0 ? ` · ${sentenceDue} ${isAr ? 'للمراجعة ⚡' : 'due ⚡'}` : ''}</div>
+                            </div>
+                            <span style="font-weight:800; font-size:0.8rem; background:rgba(255,255,255,0.18); color:white; padding:5px 12px; border-radius:8px;">${isAr ? 'ابدأ ➔' : 'Study ➔'}</span>
+                        </div>
+                        <div style="text-align:center; padding:2px 0;">
+                            <button type="button" onclick="${onStartStudy}('all')" style="background:none; border:none; color:#818cf8; font-size:0.78rem; font-weight:700; cursor:pointer; text-decoration:underline;">
+                                🌐 ${isAr ? `مذاكرة الكل معاً (${allCards.length} كارت)` : `Study all together (${allCards.length} cards)`}
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (sentenceCards.length > 0) {
+                return `
+                    <div class="folder-own-tile" onclick="${onStartStudy}('sentences')" style="background:linear-gradient(135deg, #0369a1, #0ea5e9); margin-bottom:14px;">
+                        <div style="font-size:1.45rem;">💬</div>
+                        <div style="flex:1; text-align:${alignDir};">
+                            <div style="font-weight:800; font-size:0.92rem; color:white;">${isAr ? 'مذاكرة الجمل وسياق الكلام' : 'Study Sentences & Context'}</div>
+                            <div style="font-size:0.75rem; color:#e0f2fe; margin-top:2px;">${sentenceCards.length} ${isAr ? 'جملة' : 'sentences'}${sentenceDue > 0 ? ` · ${sentenceDue} ${isAr ? 'للمراجعة ⚡' : 'due ⚡'}` : ''}</div>
+                        </div>
+                        <span style="font-weight:800; font-size:0.8rem; background:rgba(255,255,255,0.18); color:white; padding:5px 12px; border-radius:8px;">${isAr ? 'ابدأ ➔' : 'Study ➔'}</span>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="folder-own-tile" onclick="${onStartStudy}('words')" style="margin-bottom:14px;">
+                    <div style="font-size:1.45rem;">🃏</div>
+                    <div style="flex:1; text-align:${alignDir};">
+                        <div style="font-weight:800; font-size:0.92rem;">${isAr ? 'مذاكرة كروت هذا المجلد' : 'Study Cards in this Folder'}</div>
+                        <div style="font-size:0.74rem; opacity:0.85; margin-top:2px;">${wordCards.length} ${t('cardsWord')}${wordDue > 0 ? ` · ${wordDue} ${isAr ? 'للمراجعة ⚡' : 'due ⚡'}` : ''}</div>
+                    </div>
+                    <span style="font-weight:800; font-size:0.8rem; background:rgba(255,255,255,0.14); padding:4px 10px; border-radius:8px;">${isAr ? 'ابدأ ➔' : 'Study ➔'}</span>
+                </div>
+            `;
         }
 
         function updateUI() {
@@ -8355,20 +8515,10 @@
                         ${toolsHtml}
                     `;
 
-                    const ownCards = (!mainCat.isLangCategory) ? cards.filter(c => c.subCatId === mainCat.id) : [];
-                    const ownDue = ownCards.filter(c => c.nextReview <= Date.now()).length;
-                    const ownTileHtml = (ownCards.length > 0) ? `
-                        <div class="folder-own-tile" onclick="openDeckById('${mainCat.id}', true)">
-                            <div style="font-size:1.5rem;">🃏</div>
-                            <div style="flex:1; text-align:${alignDir};">
-                                <div style="font-weight:800; font-size:0.92rem;">${isAr ? 'مذاكرة كروت هذا القسم' : 'Study Cards in this Category'}</div>
-                                <div style="font-size:0.74rem; opacity:0.85; margin-top:2px;">${ownCards.length} ${t('cardsWord')}${ownDue > 0 ? ` · ${ownDue} ${isAr ? 'للمراجعة ⚡' : 'due ⚡'}` : ''}</div>
-                            </div>
-                            <span style="font-weight:800; font-size:0.8rem; background:rgba(255,255,255,0.14); padding:4px 10px; border-radius:8px;">${isAr ? 'ابدأ ➔' : 'Study ➔'}</span>
-                        </div>
-                    ` : '';
+                    const ownTileHtml = (!mainCat.isLangCategory) ? renderNodeStudyTiles(mainCat.id, alignDir, isAr, 'openDeckWithFilter') : '';
+                    const hasOwnCards = (!mainCat.isLangCategory) && cards.some(c => c.subCatId === mainCat.id);
 
-                    if (subList.length === 0 && ownCards.length === 0) {
+                    if (subList.length === 0 && !hasOwnCards) {
                         studyArea.innerHTML = `
                             <div style="text-align:center; padding:50px 20px; color:#94a3b8; width:100%;">
                                 <div style="font-size:3.2rem; margin-bottom:12px;">📂</div>
@@ -8485,20 +8635,10 @@
                         ${toolsHtml}
                     `;
                     const kids = fNode.children || [];
-                    const ownCount = cards.filter(c => c.subCatId === fNode.id).length;
-                    const ownDue = cards.filter(c => c.subCatId === fNode.id && c.nextReview <= Date.now()).length;
-                    const ownTileHtml = `
-                        <div class="folder-own-tile" onclick="enterFolderOwnCards()">
-                            <div style="font-size:1.5rem;">🃏</div>
-                            <div style="flex:1; text-align:${alignDir};">
-                                <div style="font-weight:800; font-size:0.92rem;">${isAr ? 'مذاكرة كروت هذا المجلد' : 'Study Cards in this Folder'}</div>
-                                <div style="font-size:0.74rem; opacity:0.85; margin-top:2px;">${ownCount} ${t('cardsWord')}${ownDue > 0 ? ` · ${ownDue} ${isAr ? 'للمراجعة ⚡' : 'due ⚡'}` : ''}</div>
-                            </div>
-                            <span style="font-weight:800; font-size:0.8rem; background:rgba(255,255,255,0.14); padding:4px 10px; border-radius:8px;">${isAr ? 'ابدأ ➔' : 'Study ➔'}</span>
-                        </div>
-                    `;
+                    const ownTileHtml = renderNodeStudyTiles(fNode.id, alignDir, isAr, 'enterFolderWithFilter');
+                    const hasOwnCards = cards.some(c => c.subCatId === fNode.id);
                     studyArea.innerHTML = ownTileHtml + (kids.length === 0
-                        ? `<div class="folder-empty-hint">${isAr ? 'لا توجد مجلدات فرعية هنا بعد — اضغط ＋ ثم "مجلد فرعي" لإضافة واحد 📂' : 'No subfolders yet — tap ＋ then "Subfolder" to add one 📂'}</div>`
+                        ? (hasOwnCards ? '' : `<div class="folder-empty-hint">${isAr ? 'لا توجد مجلدات فرعية هنا بعد — اضغط ＋ ثم "مجلد فرعي" لإضافة واحد 📂' : 'No subfolders yet — tap ＋ then "Subfolder" to add one 📂'}</div>`)
                         : `<div class="cat-grid">
                             ${kids.map((ch, idx) => {
                             const chIds = collectIds(ch);
@@ -8591,38 +8731,62 @@
                 </div>
             `;
 
+            // فحص كروت المجلد لمعرفة إذا كان يحتوي على كلمات وجمل معاً
+            const activeDeck = getActiveDeckId();
+            const deckAllCards = cards.filter(c => c.subCatId === activeDeck && (!favOnlyFilter || c.isFav));
+            const deckWordsCount = deckAllCards.filter(c => c.kind !== 'sentence').length;
+            const deckSentencesCount = deckAllCards.filter(c => c.kind === 'sentence').length;
+
+            let filterPillsHtml = '';
+            if (deckWordsCount > 0 && deckSentencesCount > 0) {
+                filterPillsHtml = `
+                    <div class="zk-content-filter-bar">
+                        <button type="button" class="zk-filter-pill ${studyContentFilter === 'words' ? 'active' : ''}" onclick="setStudyContentFilter('words')">
+                            🃏 ${isAr ? 'الكلمات فقط' : 'Words only'} (${deckWordsCount})
+                        </button>
+                        <button type="button" class="zk-filter-pill ${studyContentFilter === 'sentences' ? 'active' : ''}" data-filter="sentences" onclick="setStudyContentFilter('sentences')">
+                            💬 ${isAr ? 'الجمل فقط' : 'Sentences only'} (${deckSentencesCount})
+                        </button>
+                        <button type="button" class="zk-filter-pill ${studyContentFilter === 'all' ? 'active' : ''}" onclick="setStudyContentFilter('all')">
+                            🌐 ${isAr ? 'الكل' : 'All'} (${deckAllCards.length})
+                        </button>
+                    </div>
+                `;
+            }
+            const studyHeaderHtml = modesBarHtml + filterPillsHtml;
+
             if (studyMode === 'lessons') {
-                studyArea.innerHTML = modesBarHtml + renderLessonsList();
+                studyArea.innerHTML = studyHeaderHtml + renderLessonsList();
                 return;
             }
 
             // وضع تحدي الدقيقة الواحدة (60s Blitz)
             if (studyMode === 'blitz') {
-                studyArea.innerHTML = modesBarHtml + renderBlitzView(subCatCards, isAr);
+                studyArea.innerHTML = studyHeaderHtml + renderBlitzView(subCatCards, isAr);
                 return;
             }
 
             // وضع محاكي ليلة الامتحان والمراجعة المكثفة (Exam Simulator)
             if (studyMode === 'exam') {
-                studyArea.innerHTML = modesBarHtml + renderExamView(subCatCards, isAr);
+                studyArea.innerHTML = studyHeaderHtml + renderExamView(subCatCards, isAr);
                 return;
             }
 
             // أ) وضع مسابقة 4 اختيارات (Quiz)
             if (studyMode === 'quiz') {
-                studyArea.innerHTML = modesBarHtml + renderQuizView(subCatCards, isAr);
+                studyArea.innerHTML = studyHeaderHtml + renderQuizView(subCatCards, isAr);
                 return;
             }
 
             // ب) وضع لعبة التوصيل السريع (Match)
             if (studyMode === 'match') {
-                studyArea.innerHTML = modesBarHtml + renderMatchView(subCatCards, isAr);
+                studyArea.innerHTML = studyHeaderHtml + renderMatchView(subCatCards, isAr);
                 return;
             }
 
             // د) وضع لعبة الإملاء والكتابة (Typing Game)
             if (studyMode === 'type') {
-                studyArea.innerHTML = modesBarHtml + renderTypeView(subCatCards, isAr);
+                studyArea.innerHTML = studyHeaderHtml + renderTypeView(subCatCards, isAr);
                 return;
             }
 
@@ -8632,7 +8796,7 @@
                     hasCelebratedDeck = true;
                     setTimeout(triggerConfettiCelebration, 150);
                 }
-                studyArea.innerHTML = modesBarHtml + `
+                studyArea.innerHTML = studyHeaderHtml + `
                     <div style="text-align:center; color:#64748b; margin:auto 0;">
                         <div style="font-size:2.8rem; margin-bottom:6px;">🎊</div>
                         <h2>${t('doneTitle')}</h2>
@@ -8666,7 +8830,7 @@
             const todayDone = streakData.todayCount || 0;
             const userStreak = streakData.streak || 0;
 
-            studyArea.innerHTML = modesBarHtml + `
+            studyArea.innerHTML = studyHeaderHtml + `
                 <div class="deck-wrapper ${dueCards.length > 1 ? 'has-stack' : ''}">
                     <div class="card-container ${animCls}" id="card-swipe-box" onpointerdown="startCardSwipe(event)">
                         <div class="card" id="flashcard">
