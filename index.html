@@ -6180,9 +6180,10 @@
             pushNavHistory('cat');
             currentMainCatId = mainId;
             const mainCat = getCurrentMainCat();
-            currentSubCatId = mainCat.subCategories[0].id;
-            localStorage.setItem('current_main_cat', currentMainCatId);
-            localStorage.setItem('current_sub_cat', currentSubCatId);
+            currentSubCatId = (mainCat && mainCat.subCategories && mainCat.subCategories[0]) ? mainCat.subCategories[0].id : null;
+            if (currentMainCatId) localStorage.setItem('current_main_cat', currentMainCatId);
+            if (currentSubCatId) localStorage.setItem('current_sub_cat', currentSubCatId);
+            else localStorage.removeItem('current_sub_cat');
             folderPath = [];
             studyDeckOverride = null;
             navLevel = 'sub';
@@ -6197,9 +6198,11 @@
             studyDeckOverride = null;
             const mainCat = getCurrentMainCat();
             const sub = getCurrentSubCat();
-            if (mainCat.isLangCategory) {
+            if (mainCat && mainCat.isLangCategory) {
                 ensureLanguageTopics(sub);
-                currentTopicId = sub.topics[0].id;
+                currentTopicId = (sub && sub.topics && sub.topics[0]) ? sub.topics[0].id : null;
+                if (currentTopicId) localStorage.setItem('current_topic_id', currentTopicId);
+                else localStorage.removeItem('current_topic_id');
                 navLevel = 'topic';
             } else {
                 navLevel = 'folder';
@@ -6920,8 +6923,8 @@
                         cards = parsed.cards;
                         localStorage.setItem('my_categories_v2', JSON.stringify(categories));
                         localStorage.setItem('my_flashcards_v3', JSON.stringify(cards));
-                        currentMainCatId = categories[0].id;
-                        currentSubCatId = categories[0].subCategories[0].id;
+                        currentMainCatId = categories[0] ? categories[0].id : null;
+                        currentSubCatId = (categories[0] && categories[0].subCategories && categories[0].subCategories[0]) ? categories[0].subCategories[0].id : null;
                         navLevel = 'main';
                         folderPath = [];
                         studyDeckOverride = null;
@@ -7103,10 +7106,17 @@
 
         function getCurrentListArray() {
             if (navLevel === 'main') return categories;
-            if (navLevel === 'sub') return getCurrentMainCat().subCategories;
-            if (navLevel === 'topic') return getCurrentSubCat().topics;
+            if (navLevel === 'sub') {
+                const m = getCurrentMainCat();
+                return (m && m.subCategories) ? m.subCategories : [];
+            }
+            if (navLevel === 'topic') {
+                const s = getCurrentSubCat();
+                return (s && s.topics) ? s.topics : [];
+            }
             if (navLevel === 'folder') {
                 const fNode = getFolderNode();
+                if (!fNode) return [];
                 if (!fNode.children) fNode.children = [];
                 return fNode.children;
             }
@@ -12823,11 +12833,11 @@
     }
 
     function lsDeckFor(l) {
-        const k = l.deckId || '', pick = sub => sub ? (sub.topics && sub.topics.length ? sub.topics[0].id : (sub.langCode && sub.langCode !== 'auto' ? (typeof ensureLanguageTopics === 'function' && ensureLanguageTopics(sub), sub.topics[0].id) : sub.id)) : null;
+        const k = l.deckId || '', pick = sub => sub ? (sub.topics && sub.topics.length ? sub.topics[0].id : (sub.langCode && sub.langCode !== 'auto' ? (typeof ensureLanguageTopics === 'function' && ensureLanguageTopics(sub), (sub.topics && sub.topics[0] ? sub.topics[0].id : sub.id)) : sub.id)) : null;
         let d = null;
-        if (k.startsWith('cat:')) { const c = categories.find(x => x.id === k.slice(4)); d = c && pick(c.subCategories[0]) }
-        else if (k.startsWith('sub:')) { for (const c of categories) { const sb = c.subCategories.find(x => x.id === k.slice(4)); if (sb) { d = pick(sb); break } } }
-        else if (k === 'root') { const c = categories.find(x => !x.isLangCategory) || categories[0]; d = c && pick(c.subCategories[0]) }
+        if (k.startsWith('cat:')) { const c = categories.find(x => x.id === k.slice(4)); d = c && c.subCategories && pick(c.subCategories[0]) }
+        else if (k.startsWith('sub:')) { for (const c of categories) { const sb = (c.subCategories || []).find(x => x.id === k.slice(4)); if (sb) { d = pick(sb); break } } }
+        else if (k === 'root') { const c = categories.find(x => !x.isLangCategory) || categories[0]; d = c && c.subCategories && pick(c.subCategories[0]) }
         else d = k;
         return d || k;
     }
