@@ -332,7 +332,7 @@
 
         .cat-card {
             flex-shrink: 0;
-            touch-action: pan-y;
+            touch-action: pan-x pan-y;
         }
 
         .cat-card.dragging-card {
@@ -6796,6 +6796,9 @@
             try {
                 history.replaceState({ zkApp: true, root: true }, '');
                 history.pushState({ zkApp: true, home: true }, '');
+                if (navLevel !== 'main') {
+                    history.pushState({ zkApp: true, nav: navLevel }, '');
+                }
             } catch (e) { }
 
             window.addEventListener('popstate', (e) => {
@@ -6819,12 +6822,80 @@
                                 history.pushState({ zkApp: true, home: true }, '');
                             } catch (err) { }
                         }
+                    } else if (navLevel !== 'main') {
+                        if (!history.state || history.state.root) {
+                            try {
+                                history.pushState({ zkApp: true, nav: navLevel }, '');
+                            } catch (err) { }
+                        }
                     }
                 } finally {
-                    isNavigatingHistory = false;
+                    setTimeout(() => { isNavigatingHistory = false; }, 80);
                 }
             });
         }
+
+        // ====== كاشف إيماءات السحب الذكي للرجوع (Silky Smooth Edge Swipe Back) ======
+        let edgeSwipeStartX = 0;
+        let edgeSwipeStartY = 0;
+        let edgeSwipeActive = false;
+        let edgeSwipeEdge = null;
+
+        document.addEventListener('touchstart', (e) => {
+            if (e.touches.length !== 1) return;
+            const t = e.touches[0];
+            const x = t.clientX;
+            const y = t.clientY;
+            const w = window.innerWidth;
+            const EDGE_THRESHOLD = 36;
+
+            const canGoBack = (navLevel !== 'main') ||
+                document.querySelector('.add-modal-overlay.active, .manage-modal.active, .zk-icon-picker-modal.active, .zk-commute-modal.active, .zk-theme-modal.active, #cat-popover');
+            if (!canGoBack) return;
+
+            if (x <= EDGE_THRESHOLD) {
+                edgeSwipeEdge = 'left';
+                edgeSwipeStartX = x;
+                edgeSwipeStartY = y;
+                edgeSwipeActive = true;
+            } else if (x >= w - EDGE_THRESHOLD) {
+                edgeSwipeEdge = 'right';
+                edgeSwipeStartX = x;
+                edgeSwipeStartY = y;
+                edgeSwipeActive = true;
+            } else {
+                edgeSwipeActive = false;
+            }
+        }, { passive: true });
+
+        document.addEventListener('touchmove', (e) => {
+            if (!edgeSwipeActive || e.touches.length !== 1) return;
+            const t = e.touches[0];
+            const dx = t.clientX - edgeSwipeStartX;
+            const dy = t.clientY - edgeSwipeStartY;
+
+            if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 15) {
+                edgeSwipeActive = false;
+            }
+        }, { passive: true });
+
+        document.addEventListener('touchend', (e) => {
+            if (!edgeSwipeActive) return;
+            const t = e.changedTouches[0];
+            if (!t) return;
+            const dx = t.clientX - edgeSwipeStartX;
+            const dy = t.clientY - edgeSwipeStartY;
+            edgeSwipeActive = false;
+
+            const isHorizontal = Math.abs(dx) > Math.abs(dy) * 1.3 && Math.abs(dx) > 46;
+            if (!isHorizontal) return;
+
+            const isValidInward = (edgeSwipeEdge === 'left' && dx > 0) || (edgeSwipeEdge === 'right' && dx < 0);
+            if (isValidInward) {
+                triggerHaptic(18);
+                goBackNav();
+            }
+        }, { passive: true });
 
         // يلاقي مكان أي كارت/مجموعة (على أي عمق) ويفتحها للمذاكرة
         function locateDeck(deckId) {
@@ -7751,6 +7822,10 @@
             if (isSelectMode || (e.button !== undefined && e.button !== 0)) return;
             if (e.target.closest('button') || e.target.closest('.cat-edit-btn') || e.target.closest('.cat-icon-badge') || e.target.closest('input')) return;
 
+            // إذا بدأت اللمسة بالقرب من حافة الشاشة، نمنع تفعيل السحب والترتيب لضمان سلاسة إيماءات الرجوع
+            const w = window.innerWidth;
+            if (!fromHandle && (e.clientX < 42 || e.clientX > w - 42)) return;
+
             dragStartX = e.clientX;
             dragStartY = e.clientY;
             draggedIdx = idx;
@@ -7772,27 +7847,32 @@
                         dragEl.setPointerCapture(dragPointerId);
                     }
                 } catch (err) { }
+                window.addEventListener('touchmove', onDragTouchMove, { passive: false });
             };
 
             if (fromHandle) {
                 activateDrag();
             } else {
-                holdTimer = setTimeout(activateDrag, 260);
+                holdTimer = setTimeout(activateDrag, 480);
             }
+        }
+
+        function onDragTouchMove(e) {
+            if (isDraggingItem && e.cancelable) e.preventDefault();
         }
 
         window.addEventListener('pointermove', (e) => {
             if (!dragEl) return;
             if (!isDraggingItem) {
-                const dx = e.clientX - dragStartX;
-                const dy = e.clientY - dragStartY;
-                if (Math.hypot(dx, dy) > 14) {
+                const dx = Math.abs(e.clientX - dragStartX);
+                const dy = Math.abs(e.clientY - dragStartY);
+                if (dx > 8 || dy > 8) {
                     clearTimeout(holdTimer);
+                    dragEl = null;
                 }
                 return;
             }
 
-            e.preventDefault();
             let deltaY = e.clientY - dragStartY;
             const step = dragEl.offsetHeight + 10;
             const arr = getCurrentListArray();
@@ -7837,10 +7917,11 @@
             }
 
             dragEl.style.transform = `translateY(${deltaY}px) scale(1.03)`;
-        }, { passive: false });
+        }, { passive: true });
 
         function endHoldDrag() {
             clearTimeout(holdTimer);
+            window.removeEventListener('touchmove', onDragTouchMove);
             if (isDraggingItem && dragEl) {
                 isDraggingItem = false;
                 try {
@@ -7875,12 +7956,6 @@
                 e.preventDefault();
             }
         });
-
-        window.addEventListener('touchmove', (e) => {
-            if (isDraggingItem) {
-                e.preventDefault();
-            }
-        }, { passive: false });
 
         function handleCardClick(actionFn) {
             if (wasLongPressed || isDraggingItem) return;
