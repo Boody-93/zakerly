@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zakerly-cache-v30';
+const CACHE_NAME = 'zakerly-cache-v31';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

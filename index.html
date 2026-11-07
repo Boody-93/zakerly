@@ -2338,7 +2338,9 @@
             border-radius: 999px !important;
             padding: 3px 11px !important;
             font-size: .72rem !important;
-            font-weight: 800 !important
+            font-weight: 800 !important;
+            white-space: nowrap !important;
+            flex-shrink: 0 !important;
         }
 
         .cat-edit-btn,
@@ -5164,7 +5166,9 @@
 
         .cat-badge {
             padding: 2px 9px !important;
-            font-size: .66rem !important
+            font-size: .66rem !important;
+            white-space: nowrap !important;
+            flex-shrink: 0 !important;
         }
 
         .cat-edit-btn {
@@ -6452,8 +6456,46 @@
         function collectIds(node) {
             if (!node) return [];
             let ids = [node.id];
-            (node.children || []).forEach(ch => { ids = ids.concat(collectIds(ch)); });
+            if (node.langCode && (!node.topics || node.topics.length === 0) && typeof ensureLanguageTopics === 'function') {
+                ensureLanguageTopics(node);
+            }
+            if (Array.isArray(node.children)) {
+                node.children.forEach(ch => { ids = ids.concat(collectIds(ch)); });
+            }
+            if (Array.isArray(node.topics)) {
+                node.topics.forEach(tp => { ids = ids.concat(collectIds(tp)); });
+            }
+            if (Array.isArray(node.subCategories)) {
+                node.subCategories.forEach(sc => { ids = ids.concat(collectIds(sc)); });
+            }
             return ids;
+        }
+
+        // تنسيق البادج الشامل لعرض عدد الموضوعات والمجلدات والكروت بدقة
+        function formatCatBadge(folderCount, cardCount, isTopicType = false) {
+            const isAr = (appLang === 'ar');
+            let folderPart = '';
+            let cardPart = '';
+
+            if (folderCount > 0) {
+                if (isTopicType) {
+                    const topicWord = isAr ? (folderCount === 1 ? 'موضوع' : (folderCount <= 10 ? 'موضوعات' : 'موضوع')) : (folderCount === 1 ? 'topic' : 'topics');
+                    folderPart = `📂 ${folderCount} ${topicWord}`;
+                } else {
+                    const fWord = isAr ? (folderCount === 1 ? 'مجلد' : (folderCount <= 10 ? 'مجلدات' : 'مجلد')) : (folderCount === 1 ? 'folder' : 'folders');
+                    folderPart = `📂 ${folderCount} ${fWord}`;
+                }
+            }
+
+            if (cardCount > 0 || folderCount === 0) {
+                const cWord = isAr ? (cardCount === 1 ? 'كارت' : (cardCount <= 10 ? 'كروت' : 'كارت')) : (cardCount === 1 ? 'card' : 'cards');
+                cardPart = `🃏 ${cardCount} ${cWord}`;
+            }
+
+            if (folderPart && cardPart) {
+                return `${folderPart} · ${cardPart}`;
+            }
+            return folderPart || cardPart || `🃏 0 ${isAr ? 'كارت' : 'cards'}`;
         }
 
         function findInTree(node, id, trail) {
@@ -8037,29 +8079,7 @@
         }
 
         function getDeckIdsForItem(item) {
-            let deckIds = [item.id];
-            if (navLevel === 'main') {
-                (item.subCategories || []).forEach(sb => {
-                    if (item.isLangCategory) {
-                        ensureLanguageTopics(sb);
-                        (sb.topics || []).forEach(tObj => { deckIds = deckIds.concat(collectIds(tObj)); });
-                    } else {
-                        deckIds = deckIds.concat(collectIds(sb));
-                    }
-                });
-            } else if (navLevel === 'sub') {
-                const mainCat = getCurrentMainCat();
-                if (mainCat.isLangCategory) {
-                    ensureLanguageTopics(item);
-                    (item.topics || []).forEach(tObj => { deckIds = deckIds.concat(collectIds(tObj)); });
-                } else {
-                    deckIds = collectIds(item);
-                }
-            } else {
-                // topic / folder
-                deckIds = collectIds(item);
-            }
-            return deckIds;
+            return collectIds(item);
         }
 
         // ====== قايمة القلم المنسدلة الصغيرة (Popover) ======
@@ -8888,18 +8908,14 @@
                         <div class="cat-grid">
                             ${categories.map((c, idx) => {
                         const isSel = selectedIds.includes(c.id);
-                        const deckIds = [c.id];
-                        (c.subCategories || []).forEach(s => {
-                            if (c.isLangCategory) {
-                                ensureLanguageTopics(s);
-                                s.topics.forEach(tObj => deckIds.push(tObj.id));
-                            } else {
-                                deckIds.push(s.id);
-                            }
-                        });
+                        if (c.isLangCategory && Array.isArray(c.subCategories)) {
+                            c.subCategories.forEach(s => ensureLanguageTopics(s));
+                        }
+                        const deckIds = collectIds(c);
                         const pct = calcMastery(deckIds);
                         const catCardsCount = cards.filter(card => deckIds.includes(card.subCatId)).length;
                         const countText = isAr ? `${catCardsCount} بطاقة` : `${catCardsCount} cards`;
+                        const branchWord = c.isLangCategory ? (isAr ? 'لغات' : 'languages') : t('branchesBadge');
                         return `
                                 <div class="cat-card" style="${isSel ? 'border-color:#4f46e5; background:#eef2ff;' : ''}"
                                      onpointerdown="startHoldDrag(event, ${idx}, this)"
@@ -8914,7 +8930,7 @@
                                             ${isSelectMode ? '' : renameBtnHtml(c.id)}
                                         </div>
                                         <div style="display:flex; align-items:center; gap:8px;">
-                                            <span class="cat-badge">${(c.subCategories || []).length} ${t('branchesBadge')}</span>
+                                            <span class="cat-badge">${(c.subCategories || []).length} ${branchWord}</span>
                                             ${isManualReorderMode ? `<span class="cat-drag-handle" onpointerdown="event.stopPropagation(); startHoldDrag(event, ${idx}, this.closest('.cat-card'), true)" title="${isAr ? 'اسحب لإعادة الترتيب' : 'Drag to reorder'}">⠿</span>` : ''}
                                         </div>
                                     </div>
@@ -8962,14 +8978,13 @@
                             <div class="cat-grid">
                                 ${subList.map((s, idx) => {
                             const isSel = selectedIds.includes(s.id);
-                            let deckIds = collectIds(s);
                             if (mainCat.isLangCategory) {
                                 ensureLanguageTopics(s);
-                                deckIds = [];
-                                s.topics.forEach(tObj => { deckIds = deckIds.concat(collectIds(tObj)); });
                             }
-                            const subFolderCount = (!mainCat.isLangCategory && s.children) ? s.children.length : 0;
-                            const cardCount = cards.filter(c => collectIds(s).includes(c.subCatId)).length;
+                            const deckIds = collectIds(s);
+                            const isTopicType = !!mainCat.isLangCategory;
+                            const subFolderCount = isTopicType ? (s.topics || []).length : ((s.children || []).length);
+                            const cardCount = cards.filter(c => deckIds.includes(c.subCatId)).length;
                             const pct = calcMastery(deckIds);
                             const sDisplayName = trName(s.name);
                             const defaultSubIcon = mainCat.isLangCategory ? (DEFAULT_LANG_FLAGS[s.langCode] || '📁') : '📂';
@@ -8988,7 +9003,7 @@
                                                 ${isSelectMode ? '' : renameBtnHtml(s.id)}
                                             </div>
                                             <div style="display:flex; align-items:center; gap:8px;">
-                                                <span class="cat-badge">${subFolderCount > 0 ? `📂 ${subFolderCount} · ` : ''}🃏 ${cardCount} ${t('cardsWord')}</span>
+                                                <span class="cat-badge">${formatCatBadge(subFolderCount, cardCount, isTopicType)}</span>
                                                 ${isManualReorderMode ? `<span class="cat-drag-handle" onpointerdown="event.stopPropagation(); startHoldDrag(event, ${idx}, this.closest('.cat-card'), true)" title="${isAr ? 'اسحب لإعادة الترتيب' : 'Drag to reorder'}">⠿</span>` : ''}
                                             </div>
                                         </div>
@@ -9042,7 +9057,7 @@
                                             ${isSelectMode ? '' : renameBtnHtml(tObj.id)}
                                         </div>
                                         <div style="display:flex; align-items:center; gap:8px;">
-                                            <span class="cat-badge">${tFolders > 0 ? `📂 ${tFolders} · ` : ''}🃏 ${count} ${t('cardsWord')}</span>
+                                            <span class="cat-badge">${formatCatBadge(tFolders, count, false)}</span>
                                             ${isManualReorderMode ? `<span class="cat-drag-handle" onpointerdown="event.stopPropagation(); startHoldDrag(event, ${idx}, this.closest('.cat-card'), true)" title="${isAr ? 'اسحب لإعادة الترتيب' : 'Drag to reorder'}">⠿</span>` : ''}
                                         </div>
                                     </div>
@@ -9092,7 +9107,7 @@
                                             ${isSelectMode ? '' : renameBtnHtml(ch.id)}
                                         </div>
                                         <div style="display:flex; align-items:center; gap:8px;">
-                                            <span class="cat-badge">${chFolders > 0 ? `📂 ${chFolders} · ` : ''}🃏 ${chCount} ${t('cardsWord')}</span>
+                                            <span class="cat-badge">${formatCatBadge(chFolders, chCount, false)}</span>
                                             ${isManualReorderMode ? `<span class="cat-drag-handle" onpointerdown="event.stopPropagation(); startHoldDrag(event, ${idx}, this.closest('.cat-card'), true)" title="${isAr ? 'اسحب لإعادة الترتيب' : 'Drag to reorder'}">⠿</span>` : ''}
                                         </div>
                                     </div>
