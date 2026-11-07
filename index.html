@@ -559,33 +559,16 @@
             border-color: #818cf8;
         }
 
-        .sentence-cloze-blank {
+        .sentence-keyword-pill {
             display: inline-block;
-            padding: 2px 14px;
+            padding: 1px 7px;
+            margin: 1px 2px;
+            border-radius: 8px;
             background: rgba(99, 102, 241, 0.22);
-            border: 2px dashed #818cf8;
-            color: #c7d2fe;
-            border-radius: 10px;
+            border-bottom: 2.5px solid #818cf8;
+            color: #ffffff;
             font-weight: 800;
-            margin: 2px 4px;
-            cursor: pointer;
-            letter-spacing: 2px;
-            transition: all 0.25s ease;
-            vertical-align: middle;
-        }
-
-        .sentence-cloze-blank:hover {
-            background: rgba(99, 102, 241, 0.35);
-            border-color: #a5b4fc;
-            transform: scale(1.04);
-        }
-
-        .sentence-cloze-blank.revealed {
-            background: rgba(16, 185, 129, 0.25) !important;
-            border: 1.5px solid #10b981 !important;
-            color: #34d399 !important;
-            letter-spacing: normal !important;
-            animation: pillPop 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: all 0.2s ease;
         }
 
         .sentence-highlighted-word {
@@ -631,11 +614,11 @@
         }
 
         .sentence-text-flow {
-            font-size: 1.15rem;
+            font-size: 1.18rem;
             line-height: 1.65;
             font-weight: 700;
             color: #ffffff;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
             max-width: 100%;
             word-break: break-word;
             display: flex;
@@ -645,21 +628,31 @@
             gap: 4px 6px;
         }
 
-        .sentence-trans-hint {
-            font-size: 0.95rem;
-            color: rgba(255, 255, 255, 0.82);
+        .sentence-back-meaning {
+            font-size: 1.3rem;
+            color: #fef08a;
             line-height: 1.5;
-            margin-top: 6px;
-            font-weight: 600;
+            margin: 6px 0 12px;
+            font-weight: 800;
             direction: rtl;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
         }
 
-        .sentence-back-meaning {
-            font-size: 1.05rem;
-            color: #fde047;
-            line-height: 1.5;
-            margin: 8px 0 10px;
-            font-weight: 800;
+        .sentence-ref-box {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 8px 12px;
+            margin: 6px 0 10px;
+            width: 100%;
+        }
+
+        .sentence-ref-label {
+            font-size: 0.72rem;
+            color: #94a3b8;
+            font-weight: 700;
+            margin-bottom: 4px;
+            text-align: right;
             direction: rtl;
         }
 
@@ -5519,16 +5512,16 @@
                         </div>
                     </div>
 
-                    <!-- ميزة كبسولات الكلمات التفاعلية لاختيار الكلمات المخفية -->
+                    <!-- ميزة كبسولات الكلمات التفاعلية لتحديد الكلمات الهامة أو الصعبة -->
                     <div class="zk-sentence-selector-wrap" style="background:rgba(99,102,241,0.06); border:1px dashed #818cf8; border-radius:12px; padding:10px; margin-bottom:12px;">
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                            <span style="font-size:0.75rem; font-weight:800; color:#4f46e5;">✂️ اضغط على الكلمات الصعبة لإخفائها:</span>
-                            <span id="sentence-hidden-count" style="font-size:0.7rem; font-weight:700; color:#059669; background:#dcfce7; padding:2px 8px; border-radius:10px;">0 مخفية</span>
+                            <span style="font-size:0.75rem; font-weight:800; color:#4f46e5;">⭐ اضغط على الكلمات الصعبة لتمييزها بلون خاص (اختياري):</span>
+                            <span id="sentence-hidden-count" style="font-size:0.7rem; font-weight:700; color:#4338ca; background:#e0e7ff; padding:2px 8px; border-radius:10px;">0 محددة</span>
                         </div>
                         <div id="sentence-words-pills" style="display:flex; flex-wrap:wrap; gap:6px; min-height:36px; align-items:center;">
                             <span style="font-size:0.75rem; color:#94a3b8; font-style:italic;">اكتب الجملة أولاً لتظهر كلماتها هنا...</span>
                         </div>
-                        <!-- معاينة شكل الجملة مع الفراغات -->
+                        <!-- معاينة شكل الجملة مع الكلمات المميزة -->
                         <div id="sentence-cloze-preview" style="display:none; margin-top:8px; padding-top:8px; border-top:1px solid rgba(99,102,241,0.15); font-size:0.82rem; color:#334155; line-height:1.5;"></div>
                     </div>
 
@@ -6621,17 +6614,18 @@
             const hiddenCountBadge = document.getElementById('sentence-hidden-count');
             if (!pillsContainer) return;
 
+            const isAr = (appLang === 'ar');
             if (!raw) {
-                pillsContainer.innerHTML = `<span style="font-size:0.75rem; color:#94a3b8; font-style:italic;">${appLang === 'ar' ? 'اكتب الجملة أولاً لتظهر كلماتها هنا...' : 'Type sentence above to see words here...'}</span>`;
+                pillsContainer.innerHTML = `<span style="font-size:0.75rem; color:#94a3b8; font-style:italic;">${isAr ? 'اكتب الجملة أولاً لتظهر كلماتها هنا...' : 'Type sentence above to see words here...'}</span>`;
                 if (previewEl) previewEl.style.display = 'none';
-                if (countBadge) countBadge.innerText = `0 ${appLang === 'ar' ? 'كلمة' : 'words'}`;
-                if (hiddenCountBadge) hiddenCountBadge.innerText = `0 ${appLang === 'ar' ? 'مخفية' : 'hidden'}`;
+                if (countBadge) countBadge.innerText = `0 ${isAr ? 'كلمة' : 'words'}`;
+                if (hiddenCountBadge) hiddenCountBadge.innerText = `0 ${isAr ? 'محددة' : 'selected'}`;
                 sentenceSelectedIndices = [];
                 return;
             }
 
-            const words = raw.split(/\s+/);
-            if (countBadge) countBadge.innerText = `${words.length} ${appLang === 'ar' ? 'كلمة' : 'words'}`;
+            const words = raw.split(/\s+/).filter(Boolean);
+            if (countBadge) countBadge.innerText = `${words.length} ${isAr ? 'كلمة' : 'words'}`;
 
             sentenceSelectedIndices = sentenceSelectedIndices.filter(idx => idx < words.length);
 
@@ -6639,12 +6633,12 @@
                 const isSelected = sentenceSelectedIndices.includes(idx);
                 return `<button type="button" class="sentence-word-pill ${isSelected ? 'is-selected' : ''}" onclick="toggleSentenceWordPill(${idx})">
                     <span>${esc(w)}</span>
-                    ${isSelected ? '<span style="font-size:0.7rem; margin-inline-start:3px;">✂️</span>' : ''}
+                    ${isSelected ? '<span style="font-size:0.7rem; margin-inline-start:3px;">⭐</span>' : ''}
                 </button>`;
             }).join('');
 
             if (hiddenCountBadge) {
-                hiddenCountBadge.innerText = `${sentenceSelectedIndices.length} ${appLang === 'ar' ? 'مخفية' : 'hidden'}`;
+                hiddenCountBadge.innerText = `${sentenceSelectedIndices.length} ${isAr ? 'محددة للتركيز' : 'highlighted'}`;
             }
 
             if (previewEl) {
@@ -6652,11 +6646,11 @@
                     previewEl.style.display = 'block';
                     const previewText = words.map((w, idx) => {
                         if (sentenceSelectedIndices.includes(idx)) {
-                            return `<span class="cloze-preview-pill">[ ... ]</span>`;
+                            return `<mark class="sentence-highlighted-word" style="background:#fef08a; color:#854d0e; padding:1px 5px; border-radius:4px; font-weight:800;">${esc(w)}</mark>`;
                         }
                         return esc(w);
                     }).join(' ');
-                    previewEl.innerHTML = `<strong>${appLang === 'ar' ? 'معاينة أثناء المذاكرة:' : 'Study Preview:'}</strong> ${previewText}`;
+                    previewEl.innerHTML = `<strong>${isAr ? 'معاينة الكلمات المميزة في الجملة:' : 'Highlight Preview:'}</strong> <div style="margin-top:4px; font-size:0.88rem; color:#1e293b;">${previewText}</div>`;
                 } else {
                     previewEl.style.display = 'none';
                 }
@@ -8455,6 +8449,16 @@
         }
 
         function renderSentenceCardFront(card) {
+            const isAr = (appLang === 'ar');
+            if (isReverseMode) {
+                return `
+                    <div class="sentence-card-front-wrap">
+                        <div class="sentence-tag-badge">✨ ${isAr ? 'المعنى المطلوب تذكره بالإنجليزية' : 'Translate to English'}</div>
+                        <div class="sentence-back-meaning" style="font-size:1.35rem; color:#fef08a;">« ${esc(card.back)} »</div>
+                    </div>
+                `;
+            }
+
             const raw = card.front || '';
             const words = raw.split(/\s+/);
             const hiddenSet = new Set(card.hiddenIndices || []);
@@ -8462,34 +8466,23 @@
 
             const renderedWords = words.map((w, idx) => {
                 const cleanW = w.toLowerCase().replace(/[^a-zA-Z0-9\u0600-\u06FF]/g, '');
-                const isHidden = hiddenSet.has(idx) || (card.hiddenIndices == null && hiddenWordsLower.includes(cleanW));
-                if (isHidden) {
-                    return `<span class="sentence-cloze-blank" data-word="${esc(w)}" onclick="revealSentencePill(this, event)">[ ... ]</span>`;
+                const isHighlighted = hiddenSet.has(idx) || (card.hiddenIndices == null && hiddenWordsLower.includes(cleanW));
+                if (isHighlighted) {
+                    return `<span class="sentence-keyword-pill">${esc(w)}</span>`;
                 }
                 return `<span>${esc(w)}</span>`;
             });
 
-            const isAr = (appLang === 'ar');
             return `
                 <div class="sentence-card-front-wrap">
-                    <div class="sentence-tag-badge">💬 ${isAr ? 'تحدي الجملة والكلمة الناقصة' : 'Sentence Challenge'}</div>
+                    <div class="sentence-tag-badge">💬 ${isAr ? 'جملة وتعبير كامل' : 'Full Sentence'}</div>
                     <div class="sentence-text-flow ${getCardTextClass(raw)}">${renderedWords.join(' ')}</div>
-                    ${card.back ? `<div class="sentence-trans-hint">« ${esc(card.back)} »</div>` : ''}
                 </div>
             `;
         }
 
-        function revealSentencePill(el, event) {
-            if (event) event.stopPropagation();
-            const word = el.getAttribute('data-word');
-            if (!word) return;
-            el.classList.add('revealed');
-            el.innerHTML = esc(word);
-            playFeedbackSound('flip');
-            triggerHaptic(15);
-        }
-
         function renderSentenceCardBack(card) {
+            const isAr = (appLang === 'ar');
             const raw = card.front || '';
             const words = raw.split(/\s+/);
             const hiddenSet = new Set(card.hiddenIndices || []);
@@ -8497,22 +8490,43 @@
 
             const highlightedWords = words.map((w, idx) => {
                 const cleanW = w.toLowerCase().replace(/[^a-zA-Z0-9\u0600-\u06FF]/g, '');
-                const isHidden = hiddenSet.has(idx) || (card.hiddenIndices == null && hiddenWordsLower.includes(cleanW));
-                if (isHidden) {
+                const isHighlighted = hiddenSet.has(idx) || (card.hiddenIndices == null && hiddenWordsLower.includes(cleanW));
+                if (isHighlighted) {
                     return `<mark class="sentence-highlighted-word">${esc(w)}</mark>`;
                 }
                 return `<span>${esc(w)}</span>`;
             });
 
-            const isAr = (appLang === 'ar');
+            if (isReverseMode) {
+                return `
+                    <div class="sentence-card-back-wrap">
+                        <div class="sentence-tag-badge success">💬 ${isAr ? 'الجملة الإنجليزية الأصلية' : 'Original Sentence'}</div>
+                        <div class="sentence-text-flow ${getCardTextClass(raw)}" style="font-size:1.18rem; margin:10px 0;">${highlightedWords.join(' ')}</div>
+                        ${card.note ? `<div class="card-note" style="margin-top:6px;">💡 ${esc(card.note)}</div>` : ''}
+                        
+                        <div style="width:100%; margin-top:10px;">
+                            <button type="button" class="zk-shadow-pill-btn" id="sentence-shadow-btn" onpointerdown="event.stopPropagation()" onclick="startSentenceShadowing(event)">
+                                🎙️ ${isAr ? 'ردد الجملة لتجربة نطقك' : 'Repeat Sentence with Voice'}
+                            </button>
+                            <div id="sentence-shadow-result" class="zk-shadow-result-box" style="display:none;" onpointerdown="event.stopPropagation()"></div>
+                        </div>
+                    </div>
+                `;
+            }
+
             return `
                 <div class="sentence-card-back-wrap">
-                    <div class="sentence-tag-badge success">✨ ${isAr ? 'الجملة الكاملة الصحيحة' : 'Complete Sentence'}</div>
-                    <div class="sentence-text-flow ${getCardTextClass(raw)}">${highlightedWords.join(' ')}</div>
+                    <div class="sentence-tag-badge success">✨ ${isAr ? 'المعنى والترجمة' : 'Meaning & Translation'}</div>
                     <div class="sentence-back-meaning">« ${esc(card.back)} »</div>
-                    ${card.note ? `<div class="card-note">📝 ${esc(card.note)}</div>` : ''}
                     
-                    <div style="width:100%; margin-top:6px;">
+                    <div class="sentence-ref-box">
+                        <div class="sentence-ref-label">📝 ${isAr ? 'الجملة الإنجليزية:' : 'English Sentence:'}</div>
+                        <div class="sentence-text-flow ${getCardTextClass(raw)}" style="font-size:1.05rem; margin-bottom:0;">${highlightedWords.join(' ')}</div>
+                    </div>
+
+                    ${card.note ? `<div class="card-note" style="margin-top:6px;">💡 ${esc(card.note)}</div>` : ''}
+                    
+                    <div style="width:100%; margin-top:10px;">
                         <button type="button" class="zk-shadow-pill-btn" id="sentence-shadow-btn" onpointerdown="event.stopPropagation()" onclick="startSentenceShadowing(event)">
                             🎙️ ${isAr ? 'ردد الجملة لتجربة نطقك' : 'Repeat Sentence with Voice'}
                         </button>
