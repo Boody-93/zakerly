@@ -914,13 +914,86 @@
             transform: translateY(-2px);
         }
 
+        .cat-card {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
         .cat-card.dragging-card {
-            z-index: 100;
-            border-color: #4f46e5 !important;
+            z-index: 1000 !important;
+            border-color: #6366f1 !important;
             background: #ffffff !important;
-            box-shadow: 0 18px 35px rgba(79, 70, 229, 0.28), 0 0 0 4px rgba(79, 70, 229, 0.12) !important;
+            box-shadow: 0 16px 36px rgba(79, 70, 229, 0.35), 0 0 0 3px rgba(99, 102, 241, 0.35) !important;
             cursor: grabbing !important;
-            transition: box-shadow 0.2s, border-color 0.2s !important;
+            opacity: 0.95 !important;
+            transition: none !important;
+            touch-action: none !important;
+        }
+
+        .dark-mode .cat-card.dragging-card {
+            background: #1e293b !important;
+            border-color: #818cf8 !important;
+            box-shadow: 0 18px 40px rgba(0, 0, 0, 0.75), 0 0 0 3px rgba(129, 140, 248, 0.45) !important;
+        }
+
+        .cat-drag-handle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            color: #94a3b8;
+            font-size: 1.2rem;
+            cursor: grab;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .cat-drag-handle:active {
+            cursor: grabbing;
+            color: #818cf8;
+            transform: scale(1.15);
+            background: rgba(99, 102, 241, 0.2);
+        }
+
+        .cat-reorder-banner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 14px;
+            margin: 6px 0 12px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, rgba(79, 70, 229, 0.22), rgba(129, 140, 248, 0.15));
+            border: 1px solid rgba(99, 102, 241, 0.4);
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #c7d2fe;
+            animation: popMenuIn 0.2s ease;
+        }
+
+        .cat-reorder-done-btn {
+            background: #4f46e5;
+            color: #ffffff;
+            border: none;
+            padding: 5px 14px;
+            border-radius: 10px;
+            font-weight: 800;
+            font-size: 0.78rem;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(79, 70, 229, 0.4);
+            transition: all 0.2s;
+        }
+
+        .cat-reorder-done-btn:hover {
+            background: #4338ca;
+            transform: scale(1.05);
         }
 
         .cat-card-header {
@@ -7547,6 +7620,7 @@
 
         // ====== دوال السحب بالضغطة المطولة (Drag & Drop) والتحديد المتعدد والترتيب ======
         let isSelectMode = false;
+        let isManualReorderMode = false;
         let selectedIds = [];
         let sortAsc = true;
         let lastNavState = '';
@@ -7557,7 +7631,9 @@
         let wasLongPressed = false;
         let dragEl = null;
         let draggedIdx = -1;
+        let dragStartX = 0;
         let dragStartY = 0;
+        let dragPointerId = null;
 
         function getCurrentListArray() {
             if (navLevel === 'main') return categories;
@@ -7580,6 +7656,9 @@
 
         function playHapticPop() {
             try {
+                if (navigator.vibrate) {
+                    try { navigator.vibrate(35); } catch (e) { }
+                }
                 const ctx = new (window.AudioContext || window.webkitAudioContext)();
                 const osc = ctx.createOscillator();
                 const gain = ctx.createGain();
@@ -7593,37 +7672,86 @@
             } catch (e) { }
         }
 
-        function startHoldDrag(e, idx, el) {
+        function activateManualReorderMode() {
+            isManualReorderMode = true;
+            const menu = document.getElementById('sort-dropdown-box');
+            if (menu) menu.style.display = 'none';
+            playHapticPop();
+            zkToast(appLang === 'ar' ? '✋ وضع الترتيب اليدوي: اسحب أي عنصر من المقبض ⠿ أو بالضغط المطول' : '✋ Manual Reorder: Drag items by handle ⠿ or long-press');
+            updateUI();
+        }
+
+        function exitManualReorderMode() {
+            isManualReorderMode = false;
+            localStorage.setItem('my_categories_v2', JSON.stringify(categories));
+            zkToast(appLang === 'ar' ? '✅ تم حفظ الترتيب الجديد بنجاح' : '✅ Order saved successfully');
+            updateUI();
+        }
+
+        function startHoldDrag(e, idx, el, fromHandle = false) {
             if (isSelectMode || (e.button !== undefined && e.button !== 0)) return;
+            if (e.target.closest('button') || e.target.closest('.cat-edit-btn') || e.target.closest('.cat-icon-badge') || e.target.closest('input')) return;
+
+            dragStartX = e.clientX;
             dragStartY = e.clientY;
             draggedIdx = idx;
             dragEl = el;
+            dragPointerId = e.pointerId;
             isDraggingItem = false;
 
             clearTimeout(holdTimer);
-            holdTimer = setTimeout(() => {
+
+            const activateDrag = () => {
+                if (!dragEl) return;
                 isDraggingItem = true;
                 wasLongPressed = true;
                 dragEl.classList.add('dragging-card');
                 dragEl.style.transform = 'scale(1.03)';
                 playHapticPop();
-            }, 220);
+                try {
+                    if (dragEl && typeof dragEl.setPointerCapture === 'function' && dragPointerId != null) {
+                        dragEl.setPointerCapture(dragPointerId);
+                    }
+                } catch (err) { }
+            };
+
+            if (fromHandle) {
+                activateDrag();
+            } else {
+                holdTimer = setTimeout(activateDrag, 260);
+            }
         }
 
         window.addEventListener('pointermove', (e) => {
             if (!dragEl) return;
             if (!isDraggingItem) {
-                if (Math.abs(e.clientY - dragStartY) > 8) clearTimeout(holdTimer);
+                const dx = e.clientX - dragStartX;
+                const dy = e.clientY - dragStartY;
+                if (Math.hypot(dx, dy) > 14) {
+                    clearTimeout(holdTimer);
+                }
                 return;
             }
+
             e.preventDefault();
             let deltaY = e.clientY - dragStartY;
-            const step = dragEl.offsetHeight + 12;
+            const step = dragEl.offsetHeight + 10;
             const arr = getCurrentListArray();
             const grid = dragEl.parentElement;
+            if (!grid || !arr || arr.length <= 1) return;
+
+            // تمرير تلقائي عند الاقتراب من حواف الشاشة أثناء السحب
+            const scrollContainer = dragEl.closest('.content') || window;
+            if (e.clientY < 90) {
+                if (scrollContainer.scrollBy) scrollContainer.scrollBy(0, -8);
+                else window.scrollBy(0, -8);
+            } else if (e.clientY > window.innerHeight - 90) {
+                if (scrollContainer.scrollBy) scrollContainer.scrollBy(0, 8);
+                else window.scrollBy(0, 8);
+            }
 
             // تبديل لايف مع الكارت اللي تحته
-            if (deltaY > step * 0.55 && draggedIdx < arr.length - 1) {
+            while (deltaY > step * 0.52 && draggedIdx < arr.length - 1) {
                 const temp = arr[draggedIdx];
                 arr[draggedIdx] = arr[draggedIdx + 1];
                 arr[draggedIdx + 1] = temp;
@@ -7633,9 +7761,10 @@
                 draggedIdx++;
                 dragStartY += step;
                 deltaY = e.clientY - dragStartY;
+                playHapticPop();
             }
             // تبديل لايف مع الكارت اللي فوقه
-            else if (deltaY < -step * 0.55 && draggedIdx > 0) {
+            while (deltaY < -step * 0.52 && draggedIdx > 0) {
                 const temp = arr[draggedIdx];
                 arr[draggedIdx] = arr[draggedIdx - 1];
                 arr[draggedIdx - 1] = temp;
@@ -7645,6 +7774,7 @@
                 draggedIdx--;
                 dragStartY -= step;
                 deltaY = e.clientY - dragStartY;
+                playHapticPop();
             }
 
             dragEl.style.transform = `translateY(${deltaY}px) scale(1.03)`;
@@ -7654,21 +7784,47 @@
             clearTimeout(holdTimer);
             if (isDraggingItem && dragEl) {
                 isDraggingItem = false;
+                try {
+                    if (dragEl && typeof dragEl.releasePointerCapture === 'function' && dragPointerId != null) {
+                        dragEl.releasePointerCapture(dragPointerId);
+                    }
+                } catch (err) { }
                 dragEl.classList.remove('dragging-card');
                 dragEl.style.transform = '';
                 dragEl = null;
+                dragPointerId = null;
+
                 localStorage.setItem('my_categories_v2', JSON.stringify(categories));
+                zkToast(appLang === 'ar' ? '✅ تم حفظ الترتيب الجديد' : '✅ New order saved');
                 updateUI();
-                setTimeout(() => { wasLongPressed = false; }, 80);
+                setTimeout(() => { wasLongPressed = false; }, 260);
             } else {
                 dragEl = null;
+                dragPointerId = null;
             }
         }
+
         window.addEventListener('pointerup', endHoldDrag);
-        window.addEventListener('pointercancel', endHoldDrag);
+        window.addEventListener('pointercancel', (e) => {
+            clearTimeout(holdTimer);
+            if (isDraggingItem) endHoldDrag();
+            else dragEl = null;
+        });
+
+        window.addEventListener('contextmenu', (e) => {
+            if (dragEl || isDraggingItem) {
+                e.preventDefault();
+            }
+        });
+
+        window.addEventListener('touchmove', (e) => {
+            if (isDraggingItem) {
+                e.preventDefault();
+            }
+        }, { passive: false });
 
         function handleCardClick(actionFn) {
-            if (wasLongPressed) return;
+            if (wasLongPressed || isDraggingItem) return;
             actionFn();
         }
 
@@ -7986,6 +8142,7 @@
             }
 
             localStorage.setItem('my_categories_v2', JSON.stringify(categories));
+            isManualReorderMode = false;
             const menu = document.getElementById('sort-dropdown-box');
             if (menu) menu.style.display = 'none';
             updateUI();
@@ -7993,6 +8150,7 @@
 
         function toggleSelectMode() {
             isSelectMode = !isSelectMode;
+            isManualReorderMode = false;
             selectedIds = [];
             const menu = document.getElementById('sort-dropdown-box');
             if (menu) menu.style.display = 'none';
@@ -8408,6 +8566,7 @@
             const currentNavState = `${navLevel}_${currentMainCatId}_${currentSubCatId}_${currentTopicId}_${folderPath.join('/')}_${studyDeckOverride || ''}`;
             if (lastNavState !== currentNavState) {
                 isSelectMode = false;
+                isManualReorderMode = false;
                 selectedIds = [];
                 currentCardIndex = 0;
                 lastNavState = currentNavState;
@@ -8465,7 +8624,7 @@
 
                         <!-- زر الترتيب الجديد مع القائمة المنسدلة المدمجة -->
                         <div style="position:relative;" id="sort-wrapper">
-                            <button class="top-action-btn" onclick="toggleSortDropdown(event)" title="${isAr ? 'ترتيب' : 'Sort'}">
+                            <button class="top-action-btn ${isManualReorderMode ? 'active' : ''}" onclick="toggleSortDropdown(event)" title="${isAr ? 'ترتيب' : 'Sort'}">
                                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                                     <line x1="4" y1="6" x2="13" y2="6"></line>
                                     <line x1="4" y1="12" x2="10" y2="12"></line>
@@ -8475,6 +8634,10 @@
                                 </svg>
                             </button>
                             <div class="sort-dropdown-menu" id="sort-dropdown-box">
+                                <button class="sort-drop-btn" onclick="activateManualReorderMode()" style="color:#a5b4fc; font-weight:800;">
+                                    <span>✋</span>
+                                    <span>${isAr ? 'ترتيب يدوي (سحب وإفلات)' : 'Manual Reorder'}</span>
+                                </button>
                                 <button class="sort-drop-btn" onclick="applySortOption('name_asc')">
                                     <span>🔤</span>
                                     <span>${isAr ? 'أبجدياً (أ ➔ ي)' : 'A ➔ Z'}</span>
@@ -8521,6 +8684,13 @@
                         <span>${isAr ? 'حذف' : 'Delete'} (${selectedIds.length})</span>
                     </button>
                 `;
+
+                const reorderBannerHtml = isManualReorderMode ? `
+                    <div class="cat-reorder-banner">
+                        <span>✋ ${isAr ? 'وضع الترتيب اليدوي: اسحب أي عنصر من المقبض ⠿ أو بالضغط المطول' : 'Manual Reorder: Drag items by handle ⠿ or long-press'}</span>
+                        <button type="button" class="cat-reorder-done-btn" onclick="exitManualReorderMode()">${isAr ? '✔ تم' : '✔ Done'}</button>
+                    </div>
+                ` : '';
 
                 if (navLevel === 'main') {
                     topNav.innerHTML = isSelectMode ? selectBarHtml : `<span>${t('homeNav')}</span> ${toolsHtml}`;
@@ -8572,6 +8742,7 @@
                                 </button>
                             </div>
                         ` : `
+                        ${reorderBannerHtml}
                         <div class="cat-grid">
                             ${categories.map((c, idx) => {
                         const isSel = selectedIds.includes(c.id);
@@ -8600,7 +8771,10 @@
                                             </div>
                                             ${isSelectMode ? '' : renameBtnHtml(c.id)}
                                         </div>
-                                        <span class="cat-badge">${(c.subCategories || []).length} ${t('branchesBadge')}</span>
+                                        <div style="display:flex; align-items:center; gap:8px;">
+                                            <span class="cat-badge">${(c.subCategories || []).length} ${t('branchesBadge')}</span>
+                                            ${isManualReorderMode ? `<span class="cat-drag-handle" onpointerdown="event.stopPropagation(); startHoldDrag(event, ${idx}, this.closest('.cat-card'), true)" title="${isAr ? 'اسحب لإعادة الترتيب' : 'Drag to reorder'}">⠿</span>` : ''}
+                                        </div>
                                     </div>
                                     <div style="font-size:0.75rem; color:var(--muted, #94a3b8); text-align:${alignDir}; display:flex; align-items:center; gap:6px; margin:2px 0;">
                                         <span>🎴 ${countText}</span>
@@ -8642,6 +8816,7 @@
                         `;
                     } else {
                         const subCardsGrid = subList.length > 0 ? `
+                            ${reorderBannerHtml}
                             <div class="cat-grid">
                                 ${subList.map((s, idx) => {
                             const isSel = selectedIds.includes(s.id);
@@ -8672,7 +8847,10 @@
                                                 </div>
                                                 ${isSelectMode ? '' : renameBtnHtml(s.id)}
                                             </div>
-                                            <span class="cat-badge">${subFolderCount > 0 ? `📂 ${subFolderCount} · ` : ''}🃏 ${cardCount} ${t('cardsWord')}</span>
+                                            <div style="display:flex; align-items:center; gap:8px;">
+                                                <span class="cat-badge">${subFolderCount > 0 ? `📂 ${subFolderCount} · ` : ''}🃏 ${cardCount} ${t('cardsWord')}</span>
+                                                ${isManualReorderMode ? `<span class="cat-drag-handle" onpointerdown="event.stopPropagation(); startHoldDrag(event, ${idx}, this.closest('.cat-card'), true)" title="${isAr ? 'اسحب لإعادة الترتيب' : 'Drag to reorder'}">⠿</span>` : ''}
+                                            </div>
                                         </div>
                                         <div style="font-size:0.78rem; color:#64748b; text-align:${alignDir};">${mainCat.isLangCategory ? t('openLangSub') : (isAr ? 'اضغط لفتح المجلد واستعراض محتوياته' : 'Tap to open folder and view contents')}</div>
                                         ${renderMasteryBar(pct)}
@@ -8702,6 +8880,7 @@
                             </button>
                         </div>
                     ` : `
+                        ${reorderBannerHtml}
                         <div class="cat-grid">
                             ${topicList.map((tObj, idx) => {
                         const tIds = collectIds(tObj);
@@ -8722,7 +8901,10 @@
                                             </div>
                                             ${isSelectMode ? '' : renameBtnHtml(tObj.id)}
                                         </div>
-                                        <span class="cat-badge">${tFolders > 0 ? `📂 ${tFolders} · ` : ''}🃏 ${count} ${t('cardsWord')}</span>
+                                        <div style="display:flex; align-items:center; gap:8px;">
+                                            <span class="cat-badge">${tFolders > 0 ? `📂 ${tFolders} · ` : ''}🃏 ${count} ${t('cardsWord')}</span>
+                                            ${isManualReorderMode ? `<span class="cat-drag-handle" onpointerdown="event.stopPropagation(); startHoldDrag(event, ${idx}, this.closest('.cat-card'), true)" title="${isAr ? 'اسحب لإعادة الترتيب' : 'Drag to reorder'}">⠿</span>` : ''}
+                                        </div>
                                     </div>
                                     <div style="font-size:0.78rem; color:#64748b; text-align:${alignDir};">${tFolders > 0 ? (isAr ? 'اضغط لفتح المجلدات الفرعية' : 'Tap to open subfolders') : t('openTopicSub')}</div>
                                     ${renderMasteryBar(pct)}
@@ -8745,7 +8927,9 @@
                     const hasOwnCards = cards.some(c => c.subCatId === fNode.id);
                     studyArea.innerHTML = ownTileHtml + (kids.length === 0
                         ? (hasOwnCards ? '' : `<div class="folder-empty-hint">${isAr ? 'لا توجد مجلدات فرعية هنا بعد — اضغط ＋ ثم "مجلد فرعي" لإضافة واحد 📂' : 'No subfolders yet — tap ＋ then "Subfolder" to add one 📂'}</div>`)
-                        : `<div class="cat-grid">
+                        : `
+                        ${reorderBannerHtml}
+                        <div class="cat-grid">
                             ${kids.map((ch, idx) => {
                             const chIds = collectIds(ch);
                             const chCount = cards.filter(c => chIds.includes(c.subCatId)).length;
@@ -8768,7 +8952,10 @@
                                             </div>
                                             ${isSelectMode ? '' : renameBtnHtml(ch.id)}
                                         </div>
-                                        <span class="cat-badge">${chFolders > 0 ? `📂 ${chFolders} · ` : ''}🃏 ${chCount} ${t('cardsWord')}</span>
+                                        <div style="display:flex; align-items:center; gap:8px;">
+                                            <span class="cat-badge">${chFolders > 0 ? `📂 ${chFolders} · ` : ''}🃏 ${chCount} ${t('cardsWord')}</span>
+                                            ${isManualReorderMode ? `<span class="cat-drag-handle" onpointerdown="event.stopPropagation(); startHoldDrag(event, ${idx}, this.closest('.cat-card'), true)" title="${isAr ? 'اسحب لإعادة الترتيب' : 'Drag to reorder'}">⠿</span>` : ''}
+                                        </div>
                                     </div>
                                     <div style="font-size:0.78rem; color:#64748b; text-align:${alignDir};">${chFolders > 0 ? (isAr ? 'اضغط لفتح المجلدات الفرعية' : 'Tap to open subfolders') : (isAr ? 'اضغط لفتح المجلد واستعراض محتوياته' : 'Tap to open folder')}</div>
                                     ${renderMasteryBar(pct)}
