@@ -5934,13 +5934,31 @@
             ko: { basics: ['안녕하세요', '좋은 아침입니다', '대단히 감사합니다', '부탁합니다', '어떻게 지내세요?', '안녕히 가세요'], numbers: ['하나', '둘', '셋', '넷', '다섯', '열'], food: ['물', '빵', '사과', '커피', '우유', '식당'], travel: ['공항', '호텔', '자동차', '기차', '표', '도움'] }
         };
 
+        function getLeadingEmoji(text, fallback) {
+            if (!text) return fallback || '📁';
+            const match = String(text).trim().match(/^[\p{Extended_Pictographic}\uD83C-\uDBFF\uDC00-\uDFFF\u2600-\u26FF]+/u);
+            return match ? match[0] : (fallback || '📁');
+        }
+
+        function getCleanName(text) {
+            if (!text) return '';
+            const cleaned = String(text).trim().replace(/^[\p{Extended_Pictographic}\uD83C-\uDBFF\uDC00-\uDFFF\u2600-\u26FF\s]+/u, '').trim();
+            return cleaned || text;
+        }
+
+        const DEFAULT_LANG_FLAGS = {
+            en: '🇬🇧', de: '🇩🇪', fr: '🇫🇷', es: '🇪🇸',
+            it: '🇮🇹', tr: '🇹🇷', ru: '🇷🇺', nl: '🇳🇱',
+            pt: '🇵🇹', zh: '🇨🇳', ja: '🇯🇵', ko: '🇰🇷'
+        };
+
         let defaultCategories = [
             {
                 id: 'cat_langs',
                 name: '🌍 اللغات',
                 isLangCategory: true,
                 subCategories: [
-                    { id: 'sub_en', name: '🇬🇧 الإنجليزية (English)', langCode: 'en', topics: [] }
+                    { id: 'sub_en', name: '🇬🇧 الإنجليزية (English)', langCode: 'en', icon: '🇬🇧', topics: [] }
                 ]
             },
             {
@@ -5958,14 +5976,14 @@
             const savedCats = JSON.parse(localStorage.getItem('my_categories_v2'));
             if (Array.isArray(savedCats) && savedCats.length > 0) {
                 categories = savedCats;
-                // تنظيف أي علامات استفهام ناتجة عن التالف السابق في كل المستويات واستعادة أيقونات المواضيع
+                // تنظيف أي علامات استفهام ناتجة عن التالف السابق دون المساس بأي إيموجي أو أيقونة للمستخدم
                 let cleanedAny = false;
                 function sanitizeNode(item) {
                     if (!item) return;
                     if (item.name) {
                         const original = item.name;
-                        if (item.name.includes('\uFFFD') || /[\uD800-\uDFFF]/.test(item.name)) {
-                            item.name = item.name.replace(/\uFFFD+/g, '').replace(/[\uD800-\uDFFF]/g, '').trim();
+                        if (item.name.includes('\uFFFD')) {
+                            item.name = item.name.replace(/\uFFFD+/g, '').trim();
                         }
                         if (/Basics & Common Phrases|الأساسيات والجمل الشائعة/.test(item.name) && !item.name.includes('💬')) {
                             item.name = '💬 ' + item.name.replace(/^[\s?？\uFFFD]+/, '').trim();
@@ -5977,6 +5995,10 @@
                             item.name = '✈️ ' + item.name.replace(/^[\s?？\uFFFD]+/, '').trim();
                         }
                         if (item.name !== original) cleanedAny = true;
+                    }
+                    if (item.icon && item.icon.includes('\uFFFD')) {
+                        item.icon = item.icon.replace(/\uFFFD+/g, '').trim();
+                        cleanedAny = true;
                     }
                     (item.subCategories || []).forEach(sanitizeNode);
                     (item.topics || []).forEach(sanitizeNode);
@@ -6046,10 +6068,29 @@
             }
         }
 
-        // تجهيز اللغة الافتراضية عند أول تشغيل
+        // تجهيز اللغة الافتراضية عند أول تشغيل واستعادة أيقونات اللغات المفقودة
+        let restoredLangIcons = false;
         categories.forEach(c => {
-            if (c.isLangCategory) c.subCategories.forEach(s => ensureLanguageTopics(s));
+            if (c.isLangCategory && Array.isArray(c.subCategories)) {
+                c.subCategories.forEach(s => {
+                    ensureLanguageTopics(s);
+                    if (!s.icon) {
+                        const existingLeading = getLeadingEmoji(s.name, null);
+                        if (existingLeading && existingLeading !== '📁' && existingLeading !== '📂') {
+                            s.icon = existingLeading;
+                        } else if (DEFAULT_LANG_FLAGS[s.langCode]) {
+                            s.icon = DEFAULT_LANG_FLAGS[s.langCode];
+                            const clean = getCleanName(s.name);
+                            if (clean) s.name = s.icon + ' ' + clean;
+                            restoredLangIcons = true;
+                        }
+                    }
+                });
+            }
         });
+        if (restoredLangIcons) {
+            try { localStorage.setItem('my_categories_v2', JSON.stringify(categories)); } catch (e) { }
+        }
 
         // تأكد إن القيم المحفوظة لسه موجودة فعلاً (ممكن تكون اتحذفت)
         let currentMainCatId = localStorage.getItem('current_main_cat');
@@ -6290,9 +6331,27 @@
         function trName(str) {
             if (!str) return str;
             if (appLang === 'en') {
-                return LANG_NAMES_AR_TO_EN[str] || str; // لو مش من اللغات الأساسية يفضل زي ما المستخدم كتبه بالظبط
+                if (LANG_NAMES_AR_TO_EN[str]) return LANG_NAMES_AR_TO_EN[str];
+                const clean = getCleanName(str);
+                for (const [arKey, enVal] of Object.entries(LANG_NAMES_AR_TO_EN)) {
+                    if (getCleanName(arKey) === clean) {
+                        const icon = getLeadingEmoji(str, '');
+                        const cleanEn = getCleanName(enVal);
+                        return icon ? (icon + ' ' + cleanEn) : cleanEn;
+                    }
+                }
+                return str;
             } else {
-                return LANG_NAMES_EN_TO_AR[str] || str;
+                if (LANG_NAMES_EN_TO_AR[str]) return LANG_NAMES_EN_TO_AR[str];
+                const clean = getCleanName(str);
+                for (const [enKey, arVal] of Object.entries(LANG_NAMES_EN_TO_AR)) {
+                    if (getCleanName(enKey) === clean) {
+                        const icon = getLeadingEmoji(str, '');
+                        const cleanAr = getCleanName(arVal);
+                        return icon ? (icon + ' ' + cleanAr) : cleanAr;
+                    }
+                }
+                return str;
             }
         }
 
@@ -7888,7 +7947,15 @@
                 const newName = String(input).trim();
                 if (!newName) return zkToast(isAr ? 'الاسم لا يمكن أن يكون فارغاً!' : 'Name cannot be empty!');
                 if (newName === trName(item.name)) return;
-                item.name = newName;
+                const newLeading = getLeadingEmoji(newName, null);
+                if (newLeading) {
+                    item.icon = newLeading;
+                    item.name = newName;
+                } else if (item.icon) {
+                    item.name = item.icon + ' ' + newName;
+                } else {
+                    item.name = newName;
+                }
                 localStorage.setItem('my_categories_v2', JSON.stringify(categories));
                 updateUI();
             });
@@ -8766,7 +8833,7 @@
                                         <div class="cat-title-wrap">
                                             ${isSelectMode ? `<span style="font-size:1.1rem;">${isSel ? '✅' : '⬜'}</span>` : ''}
                                             <div style="font-weight:800; font-size:1.05rem; color:#1e293b; display:inline-flex; align-items:center; gap:6px;">
-                                                <span class="cat-icon-badge" onclick="event.stopPropagation(); openIconPickerForItem('${c.id}', event)" title="${isAr ? 'تغيير الأيقونة' : 'Change Icon'}">${getLeadingEmoji(c.name, '📁')}</span>
+                                                <span class="cat-icon-badge" onclick="event.stopPropagation(); openIconPickerForItem('${c.id}', event)" title="${isAr ? 'تغيير الأيقونة' : 'Change Icon'}">${c.icon || getLeadingEmoji(c.name, '📁')}</span>
                                                 <span>${getCleanName(trName(c.name))}</span>
                                             </div>
                                             ${isSelectMode ? '' : renameBtnHtml(c.id)}
@@ -8829,11 +8896,9 @@
                             const subFolderCount = (!mainCat.isLangCategory && s.children) ? s.children.length : 0;
                             const cardCount = cards.filter(c => collectIds(s).includes(c.subCatId)).length;
                             const pct = calcMastery(deckIds);
-                            let sDisplayName = trName(s.name);
-                            if (!mainCat.isLangCategory) {
-                                if (sDisplayName.startsWith('📘 ')) sDisplayName = sDisplayName.replace(/^📘\s*/u, '📂 ');
-                                else if (!sDisplayName.startsWith('📁 ') && !sDisplayName.startsWith('📂 ')) sDisplayName = '📂 ' + sDisplayName;
-                            }
+                            const sDisplayName = trName(s.name);
+                            const defaultSubIcon = mainCat.isLangCategory ? (DEFAULT_LANG_FLAGS[s.langCode] || '📁') : '📂';
+                            const sIcon = s.icon || getLeadingEmoji(s.name, defaultSubIcon);
                             return `
                                     <div class="cat-card" style="${isSel ? 'border-color:#4f46e5; background:#eef2ff;' : ''}"
                                          onpointerdown="startHoldDrag(event, ${idx}, this)"
@@ -8842,7 +8907,7 @@
                                             <div class="cat-title-wrap">
                                                 ${isSelectMode ? `<span style="font-size:1.1rem;">${isSel ? '✅' : '⬜'}</span>` : ''}
                                                 <div style="font-weight:800; font-size:1rem; color:#1e293b; display:inline-flex; align-items:center; gap:6px;">
-                                                    <span class="cat-icon-badge" onclick="event.stopPropagation(); openIconPickerForItem('${s.id}', event)" title="${isAr ? 'تغيير الأيقونة' : 'Change Icon'}">${getLeadingEmoji(sDisplayName, '📁')}</span>
+                                                    <span class="cat-icon-badge" onclick="event.stopPropagation(); openIconPickerForItem('${s.id}', event)" title="${isAr ? 'تغيير الأيقونة' : 'Change Icon'}">${sIcon}</span>
                                                     <span>${getCleanName(sDisplayName)}</span>
                                                 </div>
                                                 ${isSelectMode ? '' : renameBtnHtml(s.id)}
@@ -8896,7 +8961,7 @@
                                         <div class="cat-title-wrap">
                                             ${isSelectMode ? `<span style="font-size:1.1rem;">${isSel ? '✅' : '⬜'}</span>` : ''}
                                             <div style="font-weight:800; font-size:0.95rem; color:#1e293b; display:inline-flex; align-items:center; gap:6px;">
-                                                <span class="cat-icon-badge" onclick="event.stopPropagation(); openIconPickerForItem('${tObj.id}', event)" title="${isAr ? 'تغيير الأيقونة' : 'Change Icon'}">${getLeadingEmoji(tObj.name, '📁')}</span>
+                                                <span class="cat-icon-badge" onclick="event.stopPropagation(); openIconPickerForItem('${tObj.id}', event)" title="${isAr ? 'تغيير الأيقونة' : 'Change Icon'}">${tObj.icon || getLeadingEmoji(tObj.name, '📌')}</span>
                                                 <span>${getCleanName(trName(tObj.name))}</span>
                                             </div>
                                             ${isSelectMode ? '' : renameBtnHtml(tObj.id)}
@@ -8936,9 +9001,8 @@
                             const chFolders = ch.children ? ch.children.length : 0;
                             const isSel = selectedIds.includes(ch.id);
                             const pct = calcMastery(chIds);
-                            let chDisplayName = trName(ch.name);
-                            if (chDisplayName.startsWith('📘 ')) chDisplayName = chDisplayName.replace(/^📘\s*/, '📂 ');
-                            else if (!chDisplayName.startsWith('📁 ') && !chDisplayName.startsWith('📂 ')) chDisplayName = '📂 ' + chDisplayName;
+                            const chDisplayName = trName(ch.name);
+                            const chIcon = ch.icon || getLeadingEmoji(ch.name, '📂');
                             return `
                                 <div class="cat-card" style="${isSel ? 'border-color:#4f46e5; background:#eef2ff;' : ''}"
                                      onpointerdown="startHoldDrag(event, ${idx}, this)"
@@ -8947,7 +9011,7 @@
                                         <div class="cat-title-wrap">
                                             ${isSelectMode ? `<span style="font-size:1.1rem;">${isSel ? '✅' : '⬜'}</span>` : ''}
                                             <div style="font-weight:800; font-size:0.95rem; color:#1e293b; display:inline-flex; align-items:center; gap:6px;">
-                                                <span class="cat-icon-badge" onclick="event.stopPropagation(); openIconPickerForItem('${ch.id}', event)" title="${isAr ? 'تغيير الأيقونة' : 'Change Icon'}">${getLeadingEmoji(chDisplayName, '📁')}</span>
+                                                <span class="cat-icon-badge" onclick="event.stopPropagation(); openIconPickerForItem('${ch.id}', event)" title="${isAr ? 'تغيير الأيقونة' : 'Change Icon'}">${chIcon}</span>
                                                 <span>${getCleanName(chDisplayName)}</span>
                                             </div>
                                             ${isSelectMode ? '' : renameBtnHtml(ch.id)}
@@ -9799,8 +9863,8 @@
                 for (let item of arr) {
                     if (String(item.id) === String(targetIconItemId)) {
                         item.icon = emoji;
-                        let cleanName = item.name.replace(/^[\p{Extended_Pictographic}\uD83C-\uDBFF\uDC00-\uDFFF\u2600-\u26FF\s]+/u, '').trim();
-                        item.name = emoji + ' ' + (cleanName || item.name);
+                        let cleanName = getCleanName(item.name) || item.name;
+                        item.name = emoji + ' ' + cleanName;
                         return true;
                     }
                     if (item.subCategories && updateInArray(item.subCategories)) return true;
@@ -9819,18 +9883,6 @@
             triggerHaptic(20);
             closeIconPickerModal();
             updateUI();
-        }
-
-        function getLeadingEmoji(text, fallback) {
-            if (!text) return fallback || '📁';
-            const match = text.trim().match(/^[\p{Extended_Pictographic}\uD83C-\uDBFF\uDC00-\uDFFF\u2600-\u26FF]+/u);
-            return match ? match[0] : (fallback || '📁');
-        }
-
-        function getCleanName(text) {
-            if (!text) return '';
-            const cleaned = text.trim().replace(/^[\p{Extended_Pictographic}\uD83C-\uDBFF\uDC00-\uDFFF\u2600-\u26FF\s]+/u, '').trim();
-            return cleaned || text;
         }
 
         // ====== 1. نظام المؤثرات الصوتية والاهتزاز الحسي Web Audio API ======
