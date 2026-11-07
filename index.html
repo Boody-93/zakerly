@@ -591,6 +591,7 @@
             width: 100%;
             padding: 4px;
             text-align: center;
+            margin: auto 0;
         }
 
         .sentence-tag-badge {
@@ -601,10 +602,11 @@
             background: rgba(99, 102, 241, 0.2);
             color: #c7d2fe;
             border: 1px solid rgba(129, 140, 248, 0.35);
-            margin-bottom: 12px;
+            margin-bottom: 8px;
             display: inline-flex;
             align-items: center;
             gap: 5px;
+            flex-shrink: 0;
         }
 
         .sentence-tag-badge.success {
@@ -614,11 +616,11 @@
         }
 
         .sentence-text-flow {
-            font-size: 1.18rem;
-            line-height: 1.65;
+            font-size: 1.15rem;
+            line-height: 1.6;
             font-weight: 700;
             color: #ffffff;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             max-width: 100%;
             word-break: break-word;
             display: flex;
@@ -626,6 +628,30 @@
             justify-content: center;
             align-items: baseline;
             gap: 4px 6px;
+        }
+
+        .sentence-text-flow.text-med {
+            font-size: 1.05rem;
+            line-height: 1.5;
+            gap: 3px 5px;
+        }
+
+        .sentence-text-flow.text-long {
+            font-size: 0.95rem;
+            line-height: 1.45;
+            gap: 3px 5px;
+        }
+
+        .sentence-text-flow.text-xl-long {
+            font-size: 0.88rem;
+            line-height: 1.4;
+            gap: 2px 4px;
+        }
+
+        .sentence-text-flow.text-xxl-long {
+            font-size: 0.80rem;
+            line-height: 1.35;
+            gap: 2px 4px;
         }
 
         .sentence-back-meaning {
@@ -2528,14 +2554,36 @@
 
         .card-hero-body {
             flex: 1;
+            min-height: 0;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-start;
             width: 100%;
-            padding: 14px 6px;
+            padding: 10px 8px 12px;
             box-sizing: border-box;
             overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-y;
+            overscroll-behavior-y: contain;
+        }
+
+        .card-hero-body::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .card-hero-body::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .card-hero-body::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        .card-hero-body::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.35);
         }
 
         .card-hero-footer {
@@ -2546,6 +2594,7 @@
             width: 100%;
             padding-top: 8px;
             border-top: 1px solid rgba(255, 255, 255, 0.08);
+            flex-shrink: 0;
         }
 
         /* وحدة الملاحة وتقدم الجلسة المدمجة */
@@ -2728,6 +2777,7 @@
             flex-direction: column !important;
             align-items: center !important;
             justify-content: center !important;
+            margin: auto 0 !important;
         }
 
         .word-text.text-short {
@@ -5130,14 +5180,15 @@
         }
 
         .card-container {
-            height: 310px !important;
-            min-height: 270px !important;
-            max-height: 44vh !important;
+            height: 360px !important;
+            min-height: 320px !important;
+            max-height: 50vh !important;
         }
 
         .card-face {
             border-radius: 24px !important;
-            padding: 14px !important
+            padding: 14px !important;
+            overflow: hidden !important;
         }
 
         .word-text.text-short {
@@ -5154,6 +5205,26 @@
 
         .word-text.text-xl-long {
             font-size: 0.88rem !important;
+        }
+
+        .sentence-text-flow.text-med {
+            font-size: 1.05rem !important;
+            line-height: 1.5 !important;
+        }
+
+        .sentence-text-flow.text-long {
+            font-size: 0.95rem !important;
+            line-height: 1.45 !important;
+        }
+
+        .sentence-text-flow.text-xl-long {
+            font-size: 0.88rem !important;
+            line-height: 1.4 !important;
+        }
+
+        .sentence-text-flow.text-xxl-long {
+            font-size: 0.80rem !important;
+            line-height: 1.35 !important;
         }
 
         .audio-unified-pill {
@@ -8012,16 +8083,34 @@
         let cardSwipeStartX = 0;
         let cardSwipeStartY = 0;
         let cardSwipeDeltaX = 0;
+        let cardSwipeDeltaY = 0;
         let cardSwipeStartTime = 0;
         let isSwipingCard = false;
+        let cardSwipeIsHorizontal = false;
+        let cardSwipeTarget = null;
+        let cardSwipePointerId = null;
+        let cardSwipeCaptured = false;
         let lastDueCount = -1;
 
         function resetCardSwipeState() {
             isSwipingCard = false;
+            cardSwipeIsHorizontal = false;
             cardSwipeDeltaX = 0;
+            cardSwipeDeltaY = 0;
+            if (cardSwipeCaptured && cardSwipeTarget) {
+                try {
+                    if (typeof cardSwipeTarget.releasePointerCapture === 'function') {
+                        cardSwipeTarget.releasePointerCapture(cardSwipePointerId);
+                    }
+                } catch (err) { }
+            }
+            cardSwipeCaptured = false;
+            cardSwipeTarget = null;
+            cardSwipePointerId = null;
+
             const container = document.getElementById('card-swipe-box');
             if (container) {
-                container.style.transition = 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s';
+                container.style.transition = 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s, opacity 0.22s';
                 container.style.transform = '';
                 container.style.opacity = '';
                 container.style.boxShadow = '';
@@ -8137,13 +8226,14 @@
             cardSwipeStartX = e.clientX;
             cardSwipeStartY = e.clientY;
             cardSwipeDeltaX = 0;
+            cardSwipeDeltaY = 0;
             cardSwipeStartTime = Date.now();
             isSwipingCard = true;
-            try {
-                if (e.currentTarget && typeof e.currentTarget.setPointerCapture === 'function') {
-                    e.currentTarget.setPointerCapture(e.pointerId);
-                }
-            } catch (err) { }
+            cardSwipeIsHorizontal = false;
+            cardSwipeTarget = e.currentTarget;
+            cardSwipePointerId = e.pointerId;
+            cardSwipeCaptured = false;
+            // لا نطلب setPointerCapture هنا حتى لا نعطل التمرير العمودي الطبيعي (scroll) داخل الكارت على الموبايل
         }
 
         window.addEventListener('pointermove', (e) => {
@@ -8152,14 +8242,31 @@
             if (!container) return;
             
             cardSwipeDeltaX = e.clientX - cardSwipeStartX;
-            const deltaY = e.clientY - (cardSwipeStartY || e.clientY);
+            cardSwipeDeltaY = e.clientY - (cardSwipeStartY || e.clientY);
 
-            // لو السحب عمودي لتمرير الصفحة، لا نحرك الكارت أفقياً
-            if (Math.abs(deltaY) > Math.abs(cardSwipeDeltaX) * 1.5 && Math.abs(cardSwipeDeltaX) < 15) {
-                return;
+            const absX = Math.abs(cardSwipeDeltaX);
+            const absY = Math.abs(cardSwipeDeltaY);
+
+            // تمييز فوري بين سكرول النص عمودياً وسحب الكارت أفقياً
+            if (!cardSwipeIsHorizontal) {
+                // إذا تحرك الإصبع عمودياً: المستخدم يقرأ/يمرر الجملة أو الصفحة، نلغي السحب فوراً ليعمل السكرول بسلاسة كاملة
+                if (absY > 7 && absY >= absX) {
+                    isSwipingCard = false;
+                    return;
+                }
+                // إذا كان التحرك أفقياً: المستخدم يسحب الكارت للتنقل
+                if (absX > 10 && absX > absY) {
+                    cardSwipeIsHorizontal = true;
+                    if (!cardSwipeCaptured && cardSwipeTarget && typeof cardSwipeTarget.setPointerCapture === 'function') {
+                        try {
+                            cardSwipeTarget.setPointerCapture(cardSwipePointerId);
+                            cardSwipeCaptured = true;
+                        } catch (err) { }
+                    }
+                }
             }
 
-            if (Math.abs(cardSwipeDeltaX) > 4) {
+            if (cardSwipeIsHorizontal && absX > 4) {
                 container.style.transition = 'none';
                 container.style.transform = `translateX(${cardSwipeDeltaX}px) rotate(${cardSwipeDeltaX * 0.035}deg)`;
                 if (cardSwipeDeltaX > 25) {
@@ -8172,30 +8279,34 @@
             }
         });
 
-        window.addEventListener('pointerup', () => {
+        window.addEventListener('pointerup', (e) => {
             if (!isSwipingCard) return;
             const duration = Date.now() - (cardSwipeStartTime || 0);
-            const delta = cardSwipeDeltaX;
+            const deltaX = cardSwipeDeltaX;
+            const deltaY = cardSwipeDeltaY;
+            const wasHorizontal = cardSwipeIsHorizontal;
             const container = document.getElementById('card-swipe-box');
 
-            isSwipingCard = false;
-            cardSwipeDeltaX = 0;
+            resetCardSwipeState();
 
             if (!container) return;
 
-            // نقرة سريعة وخفيفة = قلب الكارت فوراً
-            if (Math.abs(delta) < 10 && duration < 350) {
-                container.style.transform = '';
-                container.style.boxShadow = '';
+            // إذا كانت الحركة عمودية (تمرير/سكرول للجملة)، لا نقلب الكارت أبداً
+            if (Math.abs(deltaY) > 12) {
+                return;
+            }
+
+            // نقرة سريعة وخفيفة دون تحريك = قلب الكارت فوراً
+            if (!wasHorizontal && Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10 && duration < 350) {
                 flipCard();
                 return;
             }
 
             // سحب أفقي كافي لتقليب الكارت التالي
-            if (Math.abs(delta) > 55) {
-                const step = delta < 0 ? 1 : -1;
+            if (wasHorizontal && Math.abs(deltaX) > 55) {
+                const step = deltaX < 0 ? 1 : -1;
                 container.style.transition = 'transform 0.16s ease-out, opacity 0.16s ease-out';
-                container.style.transform = `translateX(${delta > 0 ? 120 : -120}%) rotate(${delta * 0.05}deg)`;
+                container.style.transform = `translateX(${deltaX > 0 ? 120 : -120}%) rotate(${deltaX * 0.05}deg)`;
                 container.style.opacity = '0';
                 
                 setTimeout(() => {
@@ -8205,11 +8316,6 @@
                     container.style.boxShadow = '';
                     changeCard(step);
                 }, 160);
-            } else {
-                // رجوع ناعم للمنتصف دون لاج
-                container.style.transition = 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s';
-                container.style.transform = '';
-                container.style.boxShadow = '';
             }
         });
 
@@ -9056,7 +9162,7 @@
                 return `
                     <div class="sentence-card-back-wrap">
                         <div class="sentence-tag-badge success">💬 ${isAr ? 'الجملة الإنجليزية الأصلية' : 'Original Sentence'}</div>
-                        <div class="sentence-text-flow ${getCardTextClass(raw)}" style="font-size:1.18rem; margin:10px 0;">${highlightedWords.join(' ')}</div>
+                        <div class="sentence-text-flow ${getCardTextClass(raw)}" style="margin:10px 0;">${highlightedWords.join(' ')}</div>
                         ${card.note ? `<div class="card-note" style="margin-top:6px;">💡 ${esc(card.note)}</div>` : ''}
                         
                         <div style="width:100%; margin-top:10px;">
@@ -9076,7 +9182,7 @@
                     
                     <div class="sentence-ref-box">
                         <div class="sentence-ref-label">📝 ${isAr ? 'الجملة الإنجليزية:' : 'English Sentence:'}</div>
-                        <div class="sentence-text-flow ${getCardTextClass(raw)}" style="font-size:1.05rem; margin-bottom:0;">${highlightedWords.join(' ')}</div>
+                        <div class="sentence-text-flow ${getCardTextClass(raw)}" style="margin-bottom:0;">${highlightedWords.join(' ')}</div>
                     </div>
 
                     ${card.note ? `<div class="card-note" style="margin-top:6px;">💡 ${esc(card.note)}</div>` : ''}
