@@ -5766,7 +5766,37 @@
         let categories = defaultCategories;
         try {
             const savedCats = JSON.parse(localStorage.getItem('my_categories_v2'));
-            if (Array.isArray(savedCats) && savedCats.length > 0) categories = savedCats;
+            if (Array.isArray(savedCats) && savedCats.length > 0) {
+                categories = savedCats;
+                // تنظيف أي علامات استفهام ناتجة عن التالف السابق في كل المستويات واستعادة أيقونات المواضيع
+                let cleanedAny = false;
+                function sanitizeNode(item) {
+                    if (!item) return;
+                    if (item.name) {
+                        const original = item.name;
+                        if (item.name.includes('\uFFFD') || /[\uD800-\uDFFF]/.test(item.name)) {
+                            item.name = item.name.replace(/\uFFFD+/g, '').replace(/[\uD800-\uDFFF]/g, '').trim();
+                        }
+                        if (/Basics & Common Phrases|الأساسيات والجمل الشائعة/.test(item.name) && !item.name.includes('💬')) {
+                            item.name = '💬 ' + item.name.replace(/^[\s?？\uFFFD]+/, '').trim();
+                        } else if (/Numbers & Counting|الأعداد والأرقام/.test(item.name) && !item.name.includes('🔢')) {
+                            item.name = '🔢 ' + item.name.replace(/^[\s?？\uFFFD]+/, '').trim();
+                        } else if (/Food & Drinks|الطعام والشراب/.test(item.name) && !item.name.includes('🍔')) {
+                            item.name = '🍔 ' + item.name.replace(/^[\s?？\uFFFD]+/, '').trim();
+                        } else if (/Travel & Transport|السفر والمواصلات/.test(item.name) && !item.name.includes('✈️')) {
+                            item.name = '✈️ ' + item.name.replace(/^[\s?？\uFFFD]+/, '').trim();
+                        }
+                        if (item.name !== original) cleanedAny = true;
+                    }
+                    (item.subCategories || []).forEach(sanitizeNode);
+                    (item.topics || []).forEach(sanitizeNode);
+                    (item.children || []).forEach(sanitizeNode);
+                }
+                categories.forEach(sanitizeNode);
+                if (cleanedAny) {
+                    localStorage.setItem('my_categories_v2', JSON.stringify(categories));
+                }
+            }
         } catch (e) {
             console.warn('Error reading categories from localStorage:', e);
         }
@@ -5774,29 +5804,24 @@
         let cards = [];
         try {
             const savedCards = JSON.parse(localStorage.getItem('my_flashcards_v3'));
-            if (Array.isArray(savedCards)) cards = savedCards;
+            if (Array.isArray(savedCards)) {
+                cards = savedCards;
+                // إنقاذ أي كروت كانت قد حُفظت في 'default_sub' بسبب البج السابق وتحويلها للقسم المناسب
+                const pubCat = categories.find(c => !c.isLangCategory && c.id !== 'cat_general');
+                if (pubCat) {
+                    let fixed = false;
+                    cards.forEach(c => {
+                        if (c.subCatId === 'default_sub') {
+                            c.subCatId = pubCat.id;
+                            fixed = true;
+                        }
+                    });
+                    if (fixed) localStorage.setItem('my_flashcards_v3', JSON.stringify(cards));
+                }
+            }
         } catch (e) {
             console.warn('Error reading flashcards from localStorage:', e);
         }
-
-        // معالجة فورية لأي كروت حُفظت سابقاً في default_sub لتعود للقسم المناسب
-        try {
-            const orphanCards = cards.filter(c => c && c.subCatId === 'default_sub');
-            if (orphanCards.length > 0) {
-                const targetCat = categories.find(c => String(c.id).includes('public') || (c.name && c.name.toLowerCase().includes('public'))) || categories[categories.length - 1] || categories[0];
-                if (targetCat) {
-                    if (!targetCat.subCategories || targetCat.subCategories.length === 0) {
-                        const subId = 'sub_' + Date.now();
-                        let cleanName = (targetCat.name || '').replace(/^[📁📂📘🌐📌📚]\s*/, '').trim() || 'Public Subjects';
-                        targetCat.subCategories = [{ id: subId, name: '📂 ' + cleanName, langCode: 'auto', children: [] }];
-                        localStorage.setItem('my_categories_v2', JSON.stringify(categories));
-                    }
-                    const targetSubId = targetCat.subCategories[0].id;
-                    orphanCards.forEach(c => { c.subCatId = targetSubId; });
-                    localStorage.setItem('my_flashcards_v3', JSON.stringify(cards));
-                }
-            }
-        } catch (e) { }
 
         // دالة لتوليد المواضيع والكروت الجاهزة لأي لغة تلقائياً
         function ensureLanguageTopics(langSubCat) {
@@ -6232,13 +6257,12 @@
 
         let customTargetDeckId = null;
 
-        function ensureMainCatSubCategory(main) {
+        function ensureMainCatSubCategory(main, desiredName) {
             if (!main) return null;
             if (!main.subCategories) main.subCategories = [];
             if (main.subCategories.length === 0) {
                 const subId = 'sub_' + Date.now();
-                let cleanName = trName(main.name).replace(/^[📁📂📘🌐📌📚]\s*/, '').trim();
-                if (!cleanName) cleanName = (appLang === 'ar') ? 'المجلد الأول' : 'Folder 1';
+                let cleanName = desiredName || getCleanName(trName(main.name)) || (appLang === 'ar' ? 'الوحدة الأولى' : 'Unit 1');
                 const newSub = {
                     id: subId,
                     name: '📂 ' + cleanName,
@@ -6254,7 +6278,7 @@
                 try {
                     localStorage.setItem('my_categories_v2', JSON.stringify(categories));
                     localStorage.setItem('current_sub_cat', currentSubCatId);
-                } catch(e){}
+                } catch (e) { }
                 return newSub;
             }
             return main.subCategories.find(s => s.id === currentSubCatId) || main.subCategories[0];
@@ -6265,24 +6289,32 @@
                 const loc = locateDeck(customTargetDeckId);
                 if (loc) return customTargetDeckId;
             }
+            if (studyDeckOverride) return studyDeckOverride;
             if (navLevel === 'folder') {
                 const fn = getFolderNode();
                 return fn ? fn.id : 'root';
             }
-            if (studyDeckOverride) return studyDeckOverride;
             const main = getCurrentMainCat();
-            if (main && (!main.subCategories || main.subCategories.length === 0)) {
-                ensureMainCatSubCategory(main);
+            if (navLevel === 'sub') {
+                if (main && main.isLangCategory) {
+                    const sub = getCurrentSubCat();
+                    ensureLanguageTopics(sub);
+                    if (sub && sub.topics && !sub.topics.find(t => t.id === currentTopicId)) {
+                        currentTopicId = (sub.topics && sub.topics[0]) ? sub.topics[0].id : null;
+                    }
+                    return currentTopicId || (sub ? sub.id : 'root');
+                }
+                if (main && main.subCategories && main.subCategories.length > 0 && currentSubCatId) {
+                    const foundSub = main.subCategories.find(s => s.id === currentSubCatId);
+                    if (foundSub) return foundSub.id;
+                }
+                return main ? main.id : 'root';
+            }
+            if (navLevel === 'main') {
+                return main ? main.id : 'root';
             }
             const sub = getCurrentSubCat();
-            if (main && main.isLangCategory) {
-                ensureLanguageTopics(sub);
-                if (sub && sub.topics && !sub.topics.find(t => t.id === currentTopicId)) {
-                    currentTopicId = (sub.topics && sub.topics[0]) ? sub.topics[0].id : null;
-                }
-                return currentTopicId || (sub ? sub.id : 'root');
-            }
-            return currentSubCatId || (sub ? sub.id : 'root');
+            return currentSubCatId || (sub && sub.id !== 'default_sub' ? sub.id : (main ? main.id : 'root'));
         }
 
         function persistNavState() {
@@ -6380,12 +6412,13 @@
             const baseBack = () => { navLevel = (mainCat && mainCat.isLangCategory) ? 'topic' : 'sub'; };
             if (navLevel === 'study') {
                 if (studyDeckOverride) {
+                    const wasMainDeck = (mainCat && studyDeckOverride === mainCat.id);
                     studyDeckOverride = null;
-                    navLevel = 'folder';
+                    navLevel = wasMainDeck ? 'sub' : 'folder';
                 } else if (folderPath.length > 0) {
                     navLevel = 'folder';
                 } else if (!mainCat || !mainCat.isLangCategory) {
-                    navLevel = 'folder';
+                    navLevel = (currentSubCatId && mainCat && mainCat.subCategories && mainCat.subCategories.length > 0) ? 'folder' : 'sub';
                 } else {
                     baseBack();
                 }
@@ -6532,8 +6565,12 @@
 
         // يلاقي مكان أي كارت/مجموعة (على أي عمق) ويفتحها للمذاكرة
         function locateDeck(deckId) {
+            if (!deckId) return null;
             for (const cat of categories) {
-                for (const sub of cat.subCategories) {
+                if (cat.id === deckId) {
+                    return { cat, sub: null, topic: null, path: [] };
+                }
+                for (const sub of (cat.subCategories || [])) {
                     if (cat.isLangCategory) {
                         ensureLanguageTopics(sub);
                         for (const tp of (sub.topics || [])) {
@@ -6554,10 +6591,17 @@
             if (!loc) return false;
             pushNavHistory('deck');
             currentMainCatId = loc.cat.id;
-            currentSubCatId = loc.sub.id;
-            if (loc.topic) currentTopicId = loc.topic.id;
-            folderPath = loc.path;
-            studyDeckOverride = (loc.path.length > 0) ? deckId : null;
+            if (loc.sub) {
+                currentSubCatId = loc.sub.id;
+                if (loc.topic) currentTopicId = loc.topic.id;
+                folderPath = loc.path;
+                studyDeckOverride = (loc.path.length > 0) ? deckId : null;
+            } else {
+                currentSubCatId = null;
+                currentTopicId = null;
+                folderPath = [];
+                studyDeckOverride = deckId;
+            }
             navLevel = 'study';
             if (resetMode) studyMode = 'cards';
             persistNavState();
@@ -6589,10 +6633,6 @@
             modal.classList.add('active', 'compact');
             const target = tab || (navLevel === 'study' ? 'card' : 'cat');
 
-            const main = getCurrentMainCat();
-            if (main && (!main.subCategories || main.subCategories.length === 0)) {
-                ensureMainCatSubCategory(main);
-            }
             customTargetDeckId = getActiveDeckId();
 
             switchAddTab(target);
@@ -6739,16 +6779,16 @@
         function getAllAvailableDecks() {
             const list = [];
             (categories || []).forEach(cat => {
-                const catCleanName = trName(cat.name).replace(/^[📁📂📘🌐📌📚]\s*/, '').trim() || trName(cat.name);
+                const catCleanName = getCleanName(trName(cat.name)) || trName(cat.name);
                 const items = [];
 
                 if (cat.isLangCategory) {
                     (cat.subCategories || []).forEach(sub => {
                         ensureLanguageTopics(sub);
-                        const subCleanName = trName(sub.name);
+                        const subName = trName(sub.name);
                         (sub.topics || []).forEach(tp => {
-                            const tpCleanName = trName(tp.name).replace(/^[📌📁📂]\s*/, '').trim() || trName(tp.name);
-                            const pathPrefix = `${subCleanName} › ${tpCleanName}`;
+                            const tpName = trName(tp.name);
+                            const pathPrefix = `${subName} › ${tpName}`;
                             items.push({
                                 id: tp.id,
                                 name: pathPrefix,
@@ -6756,8 +6796,8 @@
                             });
                             const walk = (node, prefix) => {
                                 (node.children || []).forEach(ch => {
-                                    const chClean = trName(ch.name).replace(/^[📂📁]\s*/, '').trim() || trName(ch.name);
-                                    const full = `${prefix} › ${chClean}`;
+                                    const chName = trName(ch.name);
+                                    const full = `${prefix} › ${chName}`;
                                     items.push({ id: ch.id, name: full, catId: cat.id });
                                     walk(ch, full);
                                 });
@@ -6766,31 +6806,28 @@
                         });
                     });
                 } else {
+                    const hasSubs = cat.subCategories && cat.subCategories.length > 0;
+                    items.push({
+                        id: cat.id,
+                        name: catCleanName + (hasSubs ? (appLang === 'ar' ? ' (القسم الرئيسي)' : ' (Main Category)') : ''),
+                        catId: cat.id
+                    });
                     (cat.subCategories || []).forEach(sub => {
-                        const subCleanName = trName(sub.name).replace(/^[📂📁📘]\s*/, '').trim() || trName(sub.name);
+                        const subName = trName(sub.name);
                         items.push({
                             id: sub.id,
-                            name: subCleanName,
+                            name: subName,
                             catId: cat.id
                         });
                         const walk = (node, prefix) => {
                             (node.children || []).forEach(ch => {
-                                const chClean = trName(ch.name).replace(/^[📂📁]\s*/, '').trim() || trName(ch.name);
-                                const full = `${prefix} › ${chClean}`;
+                                const chName = trName(ch.name);
+                                const full = `${prefix} › ${chName}`;
                                 items.push({ id: ch.id, name: full, catId: cat.id });
                                 walk(ch, full);
                             });
                         };
-                        walk(sub, subCleanName);
-                    });
-                }
-
-                if (items.length === 0) {
-                    items.push({
-                        id: 'cat_empty:' + cat.id,
-                        name: (appLang === 'ar' ? 'مجلد تلقائي في: ' : 'Default in: ') + catCleanName,
-                        catId: cat.id,
-                        isEmptyCat: true
+                        walk(sub, subName);
                     });
                 }
 
@@ -6811,13 +6848,13 @@
                     const isSel = (it.id === selectedDeckId);
                     return `<option value="${it.id}" ${isSel ? 'selected' : ''}>${it.name}</option>`;
                 }).join('');
-                return `<optgroup label="📂 ${g.catName}">${optionsHtml}</optgroup>`;
+                return `<optgroup label="📁 ${g.catName}">${optionsHtml}</optgroup>`;
             }).join('');
         }
 
         function renderTargetDeckCapsuleHtml() {
             const isAr = (appLang === 'ar');
-            const deckId = getActiveDeckId();
+            const deckId = customTargetDeckId || getActiveDeckId();
             const optionsHtml = renderDeckOptionsHtml(deckId);
             return `
                 <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
@@ -6834,16 +6871,7 @@
         }
 
         function setCustomTargetDeck(val) {
-            if (val && val.startsWith('cat_empty:')) {
-                const catId = val.replace('cat_empty:', '');
-                const cat = categories.find(c => c.id === catId);
-                if (cat) {
-                    const newSub = ensureMainCatSubCategory(cat);
-                    customTargetDeckId = newSub ? newSub.id : null;
-                }
-            } else {
-                customTargetDeckId = val;
-            }
+            customTargetDeckId = val;
             updateAllTargetCapsules();
         }
 
@@ -6857,32 +6885,40 @@
             if (bEl) bEl.innerHTML = html;
         }
 
+        function resolveTargetDeckId(callback) {
+            const target = customTargetDeckId || getActiveDeckId();
+            callback(target || 'root');
+        }
+
         function getTargetDeckName() {
-            const activeDeck = getActiveDeckId();
+            const activeDeck = customTargetDeckId || getActiveDeckId();
             const loc = locateDeck(activeDeck);
             if (loc) {
                 let name = trName(loc.cat.name);
-                if (loc.topic) {
-                    name += ' › ' + trName(loc.sub.name) + ' › ' + trName(loc.topic.name);
-                } else {
-                    name += ' › ' + trName(loc.sub.name);
-                }
-                if (loc.path && loc.path.length > 0) {
-                    let curr = loc.topic || loc.sub;
-                    for (const pId of loc.path) {
-                        const child = (curr.children || []).find(ch => ch.id === pId);
-                        if (child) {
-                            name += ' › ' + trName(child.name);
-                            curr = child;
+                if (loc.sub) {
+                    if (loc.topic) {
+                        name += ' › ' + trName(loc.sub.name) + ' › ' + trName(loc.topic.name);
+                    } else {
+                        name += ' › ' + trName(loc.sub.name);
+                    }
+                    if (loc.path && loc.path.length > 0) {
+                        let curr = loc.topic || loc.sub;
+                        for (const pId of loc.path) {
+                            const child = (curr.children || []).find(ch => ch.id === pId);
+                            if (child) {
+                                name += ' › ' + trName(child.name);
+                                curr = child;
+                            }
                         }
                     }
                 }
-                return name.replace(/^[📁📂📘📌]\s*/, '').replace(/›\s*[📁📂📘📌]\s*/g, '› ');
+                return name;
             }
-            const mainCat = getCurrentMainCat();
-            const subCat = getCurrentSubCat();
-            let targetName = subCat ? trName(subCat.name) : (mainCat ? trName(mainCat.name) : 'عام');
-            return (targetName || 'عام').replace(/^📘\s*/, '📂 ').replace(/^📁\s*/, '📂 ');
+            if (typeof categories !== 'undefined' && Array.isArray(categories)) {
+                const found = categories.find(c => c.id === activeDeck);
+                if (found) return trName(found.name);
+            }
+            return (appLang === 'ar') ? 'عام' : 'General';
         }
 
         let sentenceSelectedIndices = [];
@@ -6970,39 +7006,44 @@
             const words = front.split(/\s+/);
             const hiddenWords = sentenceSelectedIndices.map(i => words[i]).filter(Boolean);
 
-            const activeDeck = getActiveDeckId();
-            const newCard = {
-                id: Date.now() + Math.floor(Math.random() * 1000),
-                front: front,
-                back: back,
-                note: note,
-                subCatId: activeDeck,
-                kind: 'sentence',
-                hiddenIndices: [...sentenceSelectedIndices],
-                hiddenWords: hiddenWords,
-                nextReview: Date.now(),
-                level: 0,
-                isHard: false,
-                reviews: 0,
-                created: Date.now()
-            };
+            resolveTargetDeckId((activeDeck) => {
+                const words = front.split(/\s+/);
+                const hiddenWords = sentenceSelectedIndices.map(i => words[i]).filter(Boolean);
 
-            cards.push(newCard);
-            saveCards();
-            playFeedbackSound('easy');
-            triggerHaptic(20);
-            zkToast(isAr ? '💬 تم حفظ كارت الجملة بنجاح!' : '💬 Sentence card saved successfully!');
+                const newCard = {
+                    id: Date.now() + Math.floor(Math.random() * 1000),
+                    front: front,
+                    back: back,
+                    note: note,
+                    subCatId: activeDeck,
+                    kind: 'sentence',
+                    hiddenIndices: [...sentenceSelectedIndices],
+                    hiddenWords: hiddenWords,
+                    nextReview: Date.now(),
+                    level: 0,
+                    isHard: false,
+                    reviews: 0,
+                    created: Date.now()
+                };
 
-            if (addNext) {
-                frontEl.value = '';
-                backEl.value = '';
-                if (noteEl) noteEl.value = '';
-                sentenceSelectedIndices = [];
-                updateSentenceWordsSelector();
-                frontEl.focus();
-            } else {
-                closeAddModal();
-            }
+                cards.push(newCard);
+                saveCards();
+                playFeedbackSound('easy');
+                triggerHaptic(20);
+                zkToast(isAr ? '💬 تم حفظ كارت الجملة بنجاح!' : '💬 Sentence card saved successfully!');
+
+                if (addNext) {
+                    frontEl.value = '';
+                    backEl.value = '';
+                    if (noteEl) noteEl.value = '';
+                    sentenceSelectedIndices = [];
+                    updateSentenceWordsSelector();
+                    frontEl.focus();
+                } else {
+                    closeAddModal();
+                    updateUI();
+                }
+            });
         }
 
         function switchAddTab(tab) {
@@ -7112,37 +7153,39 @@
             if (!raw) return alert(isAr ? 'اكتب الكروت الأول (كل كارت في سطر)!' : 'Please enter cards first (one per line)!');
 
             const lines = raw.split('\n');
-            const deckId = getActiveDeckId();
-            let addedCount = 0;
 
-            lines.forEach(line => {
-                const parts = line.split(/\s*[-=:،,]\s*/);
-                if (parts.length >= 2) {
-                    const front = parts[0].trim();
-                    const back = parts.slice(1).join(' - ').trim();
-                    if (front && back) {
-                        cards.push({
-                            id: Date.now() + Math.random(),
-                            front,
-                            back,
-                            nextReview: Date.now(),
-                            isHard: false,
-                            level: 0,
-                            subCatId: deckId
-                        });
-                        addedCount++;
+            resolveTargetDeckId((deckId) => {
+                let addedCount = 0;
+                lines.forEach(line => {
+                    const parts = line.split(/\s*[-=:،,]\s*/);
+                    if (parts.length >= 2) {
+                        const front = parts[0].trim();
+                        const back = parts.slice(1).join(' - ').trim();
+                        if (front && back) {
+                            cards.push({
+                                id: Date.now() + Math.random(),
+                                front,
+                                back,
+                                nextReview: Date.now(),
+                                isHard: false,
+                                level: 0,
+                                subCatId: deckId
+                            });
+                            addedCount++;
+                        }
                     }
+                });
+
+                if (addedCount === 0) {
+                    return alert(isAr ? 'تأكد من كتابة علامة (-) بين الكلمة والمعنى في كل سطر!' : 'Make sure to separate word and meaning with (-) on each line!');
                 }
+
+                document.getElementById('bulk-input').value = '';
+                closeAddModal();
+                saveCards();
+                updateUI();
+                alert(isAr ? `✅ تم إضافة (${addedCount}) كارت بنجاح!` : `✅ Successfully added (${addedCount}) cards!`);
             });
-
-            if (addedCount === 0) {
-                return alert(isAr ? 'تأكد من كتابة علامة (-) بين الكلمة والمعنى في كل سطر!' : 'Make sure to separate word and meaning with (-) on each line!');
-            }
-
-            document.getElementById('bulk-input').value = '';
-            closeAddModal();
-            saveCards();
-            alert(isAr ? `✅ تم إضافة (${addedCount}) كارت بنجاح!` : `✅ Successfully added (${addedCount}) cards!`);
         }
 
         function exportBackupData() {
@@ -7534,12 +7577,12 @@
         }
 
         function getDeckIdsForItem(item) {
-            let deckIds = [];
+            let deckIds = [item.id];
             if (navLevel === 'main') {
-                item.subCategories.forEach(sb => {
+                (item.subCategories || []).forEach(sb => {
                     if (item.isLangCategory) {
                         ensureLanguageTopics(sb);
-                        sb.topics.forEach(tObj => { deckIds = deckIds.concat(collectIds(tObj)); });
+                        (sb.topics || []).forEach(tObj => { deckIds = deckIds.concat(collectIds(tObj)); });
                     } else {
                         deckIds = deckIds.concat(collectIds(sb));
                     }
@@ -7548,7 +7591,7 @@
                 const mainCat = getCurrentMainCat();
                 if (mainCat.isLangCategory) {
                     ensureLanguageTopics(item);
-                    item.topics.forEach(tObj => { deckIds = deckIds.concat(collectIds(tObj)); });
+                    (item.topics || []).forEach(tObj => { deckIds = deckIds.concat(collectIds(tObj)); });
                 } else {
                     deckIds = collectIds(item);
                 }
@@ -8266,8 +8309,8 @@
                         <div class="cat-grid">
                             ${categories.map((c, idx) => {
                         const isSel = selectedIds.includes(c.id);
-                        const deckIds = [];
-                        c.subCategories.forEach(s => {
+                        const deckIds = [c.id];
+                        (c.subCategories || []).forEach(s => {
                             if (c.isLangCategory) {
                                 ensureLanguageTopics(s);
                                 s.topics.forEach(tObj => deckIds.push(tObj.id));
@@ -8291,7 +8334,7 @@
                                             </div>
                                             ${isSelectMode ? '' : renameBtnHtml(c.id)}
                                         </div>
-                                        <span class="cat-badge">${c.subCategories.length} ${t('branchesBadge')}</span>
+                                        <span class="cat-badge">${(c.subCategories || []).length} ${t('branchesBadge')}</span>
                                     </div>
                                     <div style="font-size:0.75rem; color:var(--muted, #94a3b8); text-align:${alignDir}; display:flex; align-items:center; gap:6px; margin:2px 0;">
                                         <span>🎴 ${countText}</span>
@@ -8311,55 +8354,79 @@
                         <span style="font-size:0.85rem;">${trName(mainCat ? mainCat.name : '')}</span>
                         ${toolsHtml}
                     `;
-                    studyArea.innerHTML = subList.length === 0 ? `
-                        <div style="text-align:center; padding:50px 20px; color:#94a3b8; width:100%;">
-                            <div style="font-size:3.2rem; margin-bottom:12px;">📂</div>
-                            <div style="font-size:1.1rem; font-weight:800; color:#e2e8f0; margin-bottom:6px;">${isAr ? 'لا توجد مجلدات في هذا القسم' : 'No folders in this category'}</div>
-                            <div style="font-size:0.84rem; color:#94a3b8; margin-bottom:18px;">${isAr ? 'تم حذف جميع المجلدات. يمكنك إنشاء مجلد جديد من الزر أدناه' : 'All folders removed. You can create a new folder below'}</div>
-                            <button onclick="openAddModal('cat')" style="background:linear-gradient(135deg, #4f46e5, #6366f1); color:white; border:none; padding:11px 24px; border-radius:12px; font-weight:800; font-size:0.9rem; cursor:pointer; box-shadow:0 4px 15px rgba(79,70,229,0.35);">
-                                ➕ ${isAr ? 'إضافة مجلد جديد' : 'Add New Folder'}
-                            </button>
+
+                    const ownCards = (!mainCat.isLangCategory) ? cards.filter(c => c.subCatId === mainCat.id) : [];
+                    const ownDue = ownCards.filter(c => c.nextReview <= Date.now()).length;
+                    const ownTileHtml = (ownCards.length > 0) ? `
+                        <div class="folder-own-tile" onclick="openDeckById('${mainCat.id}', true)">
+                            <div style="font-size:1.5rem;">🃏</div>
+                            <div style="flex:1; text-align:${alignDir};">
+                                <div style="font-weight:800; font-size:0.92rem;">${isAr ? 'مذاكرة كروت هذا القسم' : 'Study Cards in this Category'}</div>
+                                <div style="font-size:0.74rem; opacity:0.85; margin-top:2px;">${ownCards.length} ${t('cardsWord')}${ownDue > 0 ? ` · ${ownDue} ${isAr ? 'للمراجعة ⚡' : 'due ⚡'}` : ''}</div>
+                            </div>
+                            <span style="font-weight:800; font-size:0.8rem; background:rgba(255,255,255,0.14); padding:4px 10px; border-radius:8px;">${isAr ? 'ابدأ ➔' : 'Study ➔'}</span>
                         </div>
-                    ` : `
-                        <div class="cat-grid">
-                            ${subList.map((s, idx) => {
-                        const isSel = selectedIds.includes(s.id);
-                        let deckIds = collectIds(s);
-                        if (mainCat.isLangCategory) {
-                            ensureLanguageTopics(s);
-                            deckIds = [];
-                            s.topics.forEach(tObj => { deckIds = deckIds.concat(collectIds(tObj)); });
-                        }
-                        const subFolderCount = (!mainCat.isLangCategory && s.children) ? s.children.length : 0;
-                        const cardCount = cards.filter(c => collectIds(s).includes(c.subCatId)).length;
-                        const pct = calcMastery(deckIds);
-                        let sDisplayName = trName(s.name);
-                        if (!mainCat.isLangCategory) {
-                            if (sDisplayName.startsWith('📘 ')) sDisplayName = sDisplayName.replace(/^📘\s*/, '📂 ');
-                            else if (!sDisplayName.startsWith('📁 ') && !sDisplayName.startsWith('📂 ')) sDisplayName = '📂 ' + sDisplayName;
-                        }
-                        return `
-                                <div class="cat-card" style="${isSel ? 'border-color:#4f46e5; background:#eef2ff;' : ''}"
-                                     onpointerdown="startHoldDrag(event, ${idx}, this)"
-                                     onclick="handleCardClick(() => ${isSelectMode ? `toggleSelectItem('${s.id}', event)` : `enterSubCat('${s.id}')`})">
-                                    <div class="cat-card-header">
-                                        <div class="cat-title-wrap">
-                                            ${isSelectMode ? `<span style="font-size:1.1rem;">${isSel ? '✅' : '⬜'}</span>` : ''}
-                                            <div style="font-weight:800; font-size:1rem; color:#1e293b; display:inline-flex; align-items:center; gap:6px;">
-                                                <span class="cat-icon-badge" onclick="event.stopPropagation(); openIconPickerForItem('${s.id}', event)" title="${isAr ? 'تغيير الأيقونة' : 'Change Icon'}">${getLeadingEmoji(sDisplayName, '📁')}</span>
-                                                <span>${getCleanName(sDisplayName)}</span>
-                                            </div>
-                                            ${isSelectMode ? '' : renameBtnHtml(s.id)}
-                                        </div>
-                                        <span class="cat-badge">${subFolderCount > 0 ? `📂 ${subFolderCount} · ` : ''}🃏 ${cardCount} ${t('cardsWord')}</span>
-                                    </div>
-                                    <div style="font-size:0.78rem; color:#64748b; text-align:${alignDir};">${mainCat.isLangCategory ? t('openLangSub') : (isAr ? 'اضغط لفتح المجلد واستعراض محتوياته' : 'Tap to open folder and view contents')}</div>
-                                    ${renderMasteryBar(pct)}
+                    ` : '';
+
+                    if (subList.length === 0 && ownCards.length === 0) {
+                        studyArea.innerHTML = `
+                            <div style="text-align:center; padding:50px 20px; color:#94a3b8; width:100%;">
+                                <div style="font-size:3.2rem; margin-bottom:12px;">📂</div>
+                                <div style="font-size:1.1rem; font-weight:800; color:#e2e8f0; margin-bottom:6px;">${isAr ? 'لا توجد كروت أو مجلدات هنا بعد' : 'No cards or folders here yet'}</div>
+                                <div style="font-size:0.84rem; color:#94a3b8; margin-bottom:18px;">${isAr ? 'اضغط أدناه لإضافة كارت في هذا القسم مباشرة أو إنشاء مجلد' : 'Tap below to add a card here directly or create a folder'}</div>
+                                <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+                                    <button onclick="openAddModal('card')" style="background:linear-gradient(135deg, #4f46e5, #6366f1); color:white; border:none; padding:11px 22px; border-radius:12px; font-weight:800; font-size:0.9rem; cursor:pointer; box-shadow:0 4px 15px rgba(79,70,229,0.35);">
+                                        🃏 ${isAr ? 'إضافة كارت' : 'Add Card'}
+                                    </button>
+                                    <button onclick="openAddModal('cat')" style="background:rgba(255,255,255,0.08); color:white; border:1px solid rgba(255,255,255,0.15); padding:11px 22px; border-radius:12px; font-weight:800; font-size:0.9rem; cursor:pointer;">
+                                        📂 ${isAr ? 'إضافة مجلد فرعي' : 'Add Subfolder'}
+                                    </button>
                                 </div>
-                                `;
-                    }).join('')}
-                        </div>
-                    `;
+                            </div>
+                        `;
+                    } else {
+                        const subCardsGrid = subList.length > 0 ? `
+                            <div class="cat-grid">
+                                ${subList.map((s, idx) => {
+                            const isSel = selectedIds.includes(s.id);
+                            let deckIds = collectIds(s);
+                            if (mainCat.isLangCategory) {
+                                ensureLanguageTopics(s);
+                                deckIds = [];
+                                s.topics.forEach(tObj => { deckIds = deckIds.concat(collectIds(tObj)); });
+                            }
+                            const subFolderCount = (!mainCat.isLangCategory && s.children) ? s.children.length : 0;
+                            const cardCount = cards.filter(c => collectIds(s).includes(c.subCatId)).length;
+                            const pct = calcMastery(deckIds);
+                            let sDisplayName = trName(s.name);
+                            if (!mainCat.isLangCategory) {
+                                if (sDisplayName.startsWith('📘 ')) sDisplayName = sDisplayName.replace(/^📘\s*/u, '📂 ');
+                                else if (!sDisplayName.startsWith('📁 ') && !sDisplayName.startsWith('📂 ')) sDisplayName = '📂 ' + sDisplayName;
+                            }
+                            return `
+                                    <div class="cat-card" style="${isSel ? 'border-color:#4f46e5; background:#eef2ff;' : ''}"
+                                         onpointerdown="startHoldDrag(event, ${idx}, this)"
+                                         onclick="handleCardClick(() => ${isSelectMode ? `toggleSelectItem('${s.id}', event)` : `enterSubCat('${s.id}')`})">
+                                        <div class="cat-card-header">
+                                            <div class="cat-title-wrap">
+                                                ${isSelectMode ? `<span style="font-size:1.1rem;">${isSel ? '✅' : '⬜'}</span>` : ''}
+                                                <div style="font-weight:800; font-size:1rem; color:#1e293b; display:inline-flex; align-items:center; gap:6px;">
+                                                    <span class="cat-icon-badge" onclick="event.stopPropagation(); openIconPickerForItem('${s.id}', event)" title="${isAr ? 'تغيير الأيقونة' : 'Change Icon'}">${getLeadingEmoji(sDisplayName, '📁')}</span>
+                                                    <span>${getCleanName(sDisplayName)}</span>
+                                                </div>
+                                                ${isSelectMode ? '' : renameBtnHtml(s.id)}
+                                            </div>
+                                            <span class="cat-badge">${subFolderCount > 0 ? `📂 ${subFolderCount} · ` : ''}🃏 ${cardCount} ${t('cardsWord')}</span>
+                                        </div>
+                                        <div style="font-size:0.78rem; color:#64748b; text-align:${alignDir};">${mainCat.isLangCategory ? t('openLangSub') : (isAr ? 'اضغط لفتح المجلد واستعراض محتوياته' : 'Tap to open folder and view contents')}</div>
+                                        ${renderMasteryBar(pct)}
+                                    </div>
+                                    `;
+                        }).join('')}
+                            </div>
+                        ` : '';
+                        studyArea.innerHTML = ownTileHtml + subCardsGrid;
+                    }
                 } else if (navLevel === 'topic') {
                     const subCat = getCurrentSubCat();
                     ensureLanguageTopics(subCat);
@@ -8473,8 +8540,14 @@
             const subCat = getCurrentSubCat();
             let rawTitle = mainCat.isLangCategory ? (subCat.topics.find(tObj => tObj.id === currentTopicId)?.name || subCat.name) : subCat.name;
             if (studyDeckOverride) {
-                const chainNodes = getFolderChain();
-                rawTitle = chainNodes[chainNodes.length - 1].name;
+                if (mainCat && studyDeckOverride === mainCat.id) {
+                    rawTitle = mainCat.name;
+                } else {
+                    const chainNodes = getFolderChain();
+                    rawTitle = chainNodes[chainNodes.length - 1].name;
+                }
+            } else if (!currentSubCatId || (mainCat && mainCat.subCategories && mainCat.subCategories.length === 0)) {
+                rawTitle = mainCat ? mainCat.name : '';
             }
 
             topNav.innerHTML = `
@@ -11518,55 +11591,57 @@
                 return alert(appLang === 'ar' ? 'اكتب الكلمة والمعنى الأول!' : 'Please enter both word and meaning!');
             }
 
-            const deckId = getActiveDeckId();
-            const now = Date.now();
+            resolveTargetDeckId((deckId) => {
+                const now = Date.now();
 
-            // 1. إضافة الكارت الأساسي
-            cards.push({
-                id: now,
-                front: front,
-                back: back,
-                note: note,
-                nextReview: now,
-                isHard: isHard,
-                level: 0,
-                subCatId: deckId
-            });
-
-            // 2. إضافة كارت عكسي إذا تم تفعيل الخيار
-            if (isReverse) {
+                // 1. إضافة الكارت الأساسي
                 cards.push({
-                    id: now + 1,
-                    front: back,
-                    back: front,
-                    note: note ? (note + (appLang === 'ar' ? ' (كارت معكوس)' : ' (Reverse card)')) : '',
+                    id: now,
+                    front: front,
+                    back: back,
+                    note: note,
                     nextReview: now,
                     isHard: isHard,
                     level: 0,
                     subCatId: deckId
                 });
-            }
 
-            saveCards();
-            addedCardsSessionCount += (isReverse ? 2 : 1);
-
-            frontInput.value = '';
-            backInput.value = '';
-            if (noteInput) noteInput.value = '';
-
-            if (stayOpen) {
-                const badge = document.getElementById('add-session-badge');
-                if (badge) {
-                    badge.style.display = 'inline-flex';
-                    badge.innerText = (appLang === 'ar' ? `✨ تم حفظ ${addedCardsSessionCount} كروت` : `✨ Saved ${addedCardsSessionCount} cards`);
+                // 2. إضافة كارت عكسي إذا تم تفعيل الخيار
+                if (isReverse) {
+                    cards.push({
+                        id: now + 1,
+                        front: back,
+                        back: front,
+                        note: note ? (note + (appLang === 'ar' ? ' (كارت معكوس)' : ' (Reverse card)')) : '',
+                        nextReview: now,
+                        isHard: isHard,
+                        level: 0,
+                        subCatId: deckId
+                    });
                 }
-                frontInput.focus();
-            } else {
-                addedCardsSessionCount = 0;
-                const badge = document.getElementById('add-session-badge');
-                if (badge) badge.style.display = 'none';
-                closeAddModal();
-            }
+
+                saveCards();
+                addedCardsSessionCount += (isReverse ? 2 : 1);
+
+                frontInput.value = '';
+                backInput.value = '';
+                if (noteInput) noteInput.value = '';
+
+                if (stayOpen) {
+                    const badge = document.getElementById('add-session-badge');
+                    if (badge) {
+                        badge.style.display = 'inline-flex';
+                        badge.innerText = (appLang === 'ar' ? `✨ تم حفظ ${addedCardsSessionCount} كروت` : `✨ Saved ${addedCardsSessionCount} cards`);
+                    }
+                    frontInput.focus();
+                } else {
+                    addedCardsSessionCount = 0;
+                    const badge = document.getElementById('add-session-badge');
+                    if (badge) badge.style.display = 'none';
+                    closeAddModal();
+                    updateUI();
+                }
+            });
         }
 
         // قفل أو فتح التطبيق (شاشة الهوم)
@@ -13531,7 +13606,7 @@
             const found = findInTree(categories, deckId);
             if (found) {
                 const name = (typeof trName === 'function' ? trName(found.name) : found.name) || '';
-                return name.replace(/^[📘📁📂📄🌟]\s*/, '');
+                return name.replace(/^[📘📁📂📄🌟]\s*/u, '');
             }
         }
         if (typeof getTargetDeckName === 'function') {
@@ -13546,7 +13621,7 @@
             if (!nodes || !Array.isArray(nodes)) return;
             nodes.forEach(n => {
                 const displayName = (typeof trName === 'function' ? trName(n.name) : n.name) || '';
-                const cleanName = displayName.replace(/^[📘📁📂📄🌟]\s*/, '');
+                const cleanName = displayName.replace(/^[📘📁📂📄🌟]\s*/u, '');
                 const prefix = '— '.repeat(depth);
                 list.push({
                     id: n.id,
@@ -13560,7 +13635,7 @@
                         const tName = (typeof trName === 'function' ? trName(t.name) : t.name) || '';
                         list.push({
                             id: t.id,
-                            name: '— '.repeat(depth + 1) + '📄 ' + tName.replace(/^[📘📁📂📄🌟]\s*/, '')
+                            name: '— '.repeat(depth + 1) + '📄 ' + tName.replace(/^[📘📁📂📄🌟]\s*/u, '')
                         });
                         if (t.subCategories && t.subCategories.length) {
                             walk(t.subCategories, depth + 2);
@@ -13573,7 +13648,7 @@
         if (typeof categories !== 'undefined' && Array.isArray(categories)) {
             categories.forEach(c => {
                 const cName = (typeof trName === 'function' ? trName(c.name) : c.name) || '';
-                list.push({ id: 'cat:' + c.id, name: '🌟 ' + cName.replace(/^[📘📁📂📄🌟]\s*/, ''), isHeader: true });
+                list.push({ id: 'cat:' + c.id, name: '🌟 ' + cName.replace(/^[📘📁📂📄🌟]\s*/u, ''), isHeader: true });
                 if (c.subCategories && c.subCategories.length) {
                     walk(c.subCategories, 1);
                 }
