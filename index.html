@@ -6164,6 +6164,7 @@
 
         // ====== دوال التنقل بين شاشات الأقسام والكلمات ======
         function enterMainCat(mainId) {
+            pushNavHistory('cat');
             currentMainCatId = mainId;
             const mainCat = getCurrentMainCat();
             currentSubCatId = mainCat.subCategories[0].id;
@@ -6176,6 +6177,7 @@
         }
 
         function enterSubCat(subId) {
+            pushNavHistory('sub');
             currentSubCatId = subId;
             localStorage.setItem('current_sub_cat', currentSubCatId);
             folderPath = [];
@@ -6193,6 +6195,7 @@
         }
 
         function enterTopic(topicId) {
+            pushNavHistory('topic');
             currentTopicId = topicId;
             localStorage.setItem('current_topic_id', currentTopicId);
             folderPath = [];
@@ -6206,6 +6209,7 @@
             const node = getFolderNode();
             const child = (node.children || []).find(ch => ch.id === childId);
             if (!child) return;
+            pushNavHistory('folder');
             folderPath.push(child.id);
             studyDeckOverride = null;
             navLevel = 'folder';
@@ -6214,6 +6218,7 @@
 
         // مذاكرة الكروت الموجودة مباشرة داخل المجلد الحالي (اللي ليه فروع)
         function enterFolderOwnCards() {
+            pushNavHistory('study');
             studyDeckOverride = getFolderNode().id;
             navLevel = 'study';
             updateUI();
@@ -6226,18 +6231,28 @@
             studyDeckOverride = null;
             document.getElementById('manage-modal')?.classList.remove('active');
             updateUI();
+            try {
+                history.pushState({ zkApp: true, home: true }, '');
+            } catch (e) { }
         }
 
-        function goBackNav() {
+        function goBackNav(fromPopstate = false) {
+            if (!fromPopstate) {
+                try {
+                    window.history.back();
+                    return;
+                } catch (e) { }
+            }
+
             const mainCat = getCurrentMainCat();
-            const baseBack = () => { navLevel = mainCat.isLangCategory ? 'topic' : 'main'; };
+            const baseBack = () => { navLevel = (mainCat && mainCat.isLangCategory) ? 'topic' : 'sub'; };
             if (navLevel === 'study') {
                 if (studyDeckOverride) {
                     studyDeckOverride = null;
                     navLevel = 'folder';
                 } else if (folderPath.length > 0) {
                     navLevel = 'folder';
-                } else if (!mainCat.isLangCategory) {
+                } else if (!mainCat || !mainCat.isLangCategory) {
                     navLevel = 'folder';
                 } else {
                     baseBack();
@@ -6256,11 +6271,19 @@
             updateUI();
         }
 
-        // ====== إدارة إيماءات الرجوع وزر الرجوع بنظام الهاتف (History API & Gestures) ======
+        // ====== إدارة إيماءات الرجوع وزر الرجوع بنظام الهاتف (History API & Android Gestures) ======
         let lastHomeBackPressTime = 0;
+        let isNavigatingHistory = false;
 
-        function handleBackAction() {
-            // 1. فحص أي نوافذ منبثقة مفتوحة وإغلاقها أولاً
+        function pushNavHistory(name = 'step') {
+            if (isNavigatingHistory) return;
+            try {
+                history.pushState({ zkApp: true, nav: name, time: Date.now() }, '');
+            } catch (e) { }
+        }
+
+        function handleBackAction(fromPopstate = true) {
+            // 1. فحص أي نوافذ منبثقة أو قوائم مفتوحة وإغلاقها أولاً
             if (typeof fabDialOpen !== 'undefined' && fabDialOpen) {
                 closeFabDial();
                 return true;
@@ -6282,12 +6305,12 @@
             }
             const statsModal = document.getElementById('stats-modal');
             if (statsModal && statsModal.classList.contains('active')) {
-                statsModal.classList.remove('active');
+                closeStatsModal();
                 return true;
             }
             const achieveModal = document.getElementById('zk-achievements-modal');
             if (achieveModal && achieveModal.classList.contains('active')) {
-                achieveModal.classList.remove('active');
+                closeAchievementsModal();
                 return true;
             }
             const searchModal = document.getElementById('global-search-modal');
@@ -6300,9 +6323,29 @@
                 closeThemePaletteModal();
                 return true;
             }
+            const commuteModal = document.getElementById('zk-commute-modal');
+            if (commuteModal && commuteModal.classList.contains('active')) {
+                closeCommuteModal();
+                return true;
+            }
+            const iconModal = document.getElementById('zk-icon-picker-modal');
+            if (iconModal && iconModal.classList.contains('active')) {
+                closeIconPickerModal();
+                return true;
+            }
+            const schModal = document.getElementById('schedule-modal');
+            if (schModal && schModal.classList.contains('active')) {
+                closeScheduleModal();
+                return true;
+            }
             const lsOv = document.getElementById('ls-ov');
             if (lsOv && typeof window.lsClose === 'function') {
                 window.lsClose();
+                return true;
+            }
+            const popBackdrop = document.getElementById('cat-popover-backdrop');
+            if (popBackdrop) {
+                popBackdrop.remove();
                 return true;
             }
             const forcedPopup = document.getElementById('forced-popup');
@@ -6313,71 +6356,46 @@
 
             // 2. إذا كان المستخدم داخل شاشة فرعية أو مذاكرة
             if (navLevel !== 'main') {
-                goBackNav();
+                goBackNav(true);
                 return true;
             }
 
-            // 3. إذا كان المستخدم في الصفحة الرئيسية
-            const now = Date.now();
-            const isAr = (appLang === 'ar');
-            if (now - lastHomeBackPressTime < 2200) {
-                // ضغط مرتين في الشاشة الرئيسية -> السماح بالخروج
-                return false;
-            } else {
-                lastHomeBackPressTime = now;
-                zkToast(isAr ? 'اضغط رجوع مرة أخرى للخروج من التطبيق' : 'Press back again to exit');
-                return true;
-            }
+            // 3. المستخدم في الصفحة الرئيسية ومفيش أي نوافذ مفتوحة
+            return false;
         }
 
         function initHistoryBackSupport() {
             try {
                 history.replaceState({ zkApp: true, root: true }, '');
-                history.pushState({ zkApp: true, page: 'home' }, '');
+                history.pushState({ zkApp: true, home: true }, '');
             } catch (e) { }
 
             window.addEventListener('popstate', (e) => {
-                const handled = handleBackAction();
-                if (handled) {
-                    try {
-                        history.pushState({ zkApp: true, t: Date.now() }, '');
-                    } catch (err) { }
+                isNavigatingHistory = true;
+                try {
+                    const handled = handleBackAction(true);
+                    if (!handled) {
+                        // المستخدم في الصفحة الرئيسية ومفيش أي نوافذ مفتوحة
+                        const now = Date.now();
+                        const isAr = (appLang === 'ar');
+                        if (now - lastHomeBackPressTime < 2200) {
+                            // ضغط مرتين متتاليتين في الشاشة الرئيسية -> السماح بالخروج
+                            try {
+                                window.history.back();
+                            } catch (err) { }
+                        } else {
+                            // أول ضغطة في الرئيسية -> نظهر إشعار تنبيه ونحمي الصفحة
+                            lastHomeBackPressTime = now;
+                            zkToast(isAr ? 'اضغط رجوع مرة أخرى للخروج من التطبيق' : 'Press back again to exit');
+                            try {
+                                history.pushState({ zkApp: true, home: true }, '');
+                            } catch (err) { }
+                        }
+                    }
+                } finally {
+                    isNavigatingHistory = false;
                 }
             });
-
-            // دعم إيماءة السحب باللمس من حواف الشاشة (Edge Swipe Gesture)
-            let edgeTouchStartX = 0;
-            let edgeTouchStartY = 0;
-            let isEdgeTouch = false;
-
-            window.addEventListener('touchstart', (e) => {
-                if (e.touches.length !== 1) return;
-                const t = e.touches[0];
-                const edgeThreshold = 40;
-                // سحب من الحافة اليمنى أو اليسرى
-                if (t.clientX < edgeThreshold || t.clientX > window.innerWidth - edgeThreshold) {
-                    edgeTouchStartX = t.clientX;
-                    edgeTouchStartY = t.clientY;
-                    isEdgeTouch = true;
-                } else {
-                    isEdgeTouch = false;
-                }
-            }, { passive: true });
-
-            window.addEventListener('touchend', (e) => {
-                if (!isEdgeTouch || e.changedTouches.length !== 1) return;
-                const t = e.changedTouches[0];
-                const dx = t.clientX - edgeTouchStartX;
-                const dy = Math.abs(t.clientY - edgeTouchStartY);
-
-                if (dy < 70 && Math.abs(dx) > 55) {
-                    // سحب أفقي للداخل من الحافة اليمنى أو اليسرى
-                    if ((edgeTouchStartX > window.innerWidth - 60 && dx < -50) || (edgeTouchStartX < 60 && dx > 50)) {
-                        handleBackAction();
-                    }
-                }
-                isEdgeTouch = false;
-            }, { passive: true });
         }
 
         // يلاقي مكان أي كارت/مجموعة (على أي عمق) ويفتحها للمذاكرة
@@ -6402,6 +6420,7 @@
         function openDeckById(deckId, resetMode) {
             const loc = locateDeck(deckId);
             if (!loc) return false;
+            pushNavHistory('deck');
             currentMainCatId = loc.cat.id;
             currentSubCatId = loc.sub.id;
             if (loc.topic) currentTopicId = loc.topic.id;
@@ -6432,6 +6451,7 @@
         }
         // ====== دوال أيقونة الإضافة (+) والنافذة المنبثقة ======
         function openAddModal(tab) {
+            pushNavHistory('modal-add');
             closeFabDial();
             const modal = document.getElementById('add-modal');
             modal.classList.add('active', 'compact');
@@ -8638,6 +8658,7 @@
         function openCardFullscreen(e) {
             if (e) e.stopPropagation();
             if (!currentCard) return;
+            pushNavHistory('modal-fs');
             isFullscreenCardFlipped = isCardFlipped;
 
             let modal = document.getElementById('zk-fullscreen-card-modal');
@@ -8766,6 +8787,7 @@
         }
 
         function openThemePaletteModal() {
+            pushNavHistory('modal-theme');
             let modal = document.getElementById('zk-theme-modal');
             if (!modal) {
                 modal = document.createElement('div');
@@ -8841,6 +8863,7 @@
         function openIconPickerForItem(itemId, e) {
             if (e) e.stopPropagation();
             targetIconItemId = String(itemId);
+            pushNavHistory('modal-icon');
 
             let modal = document.getElementById('zk-icon-picker-modal');
             if (!modal) {
@@ -9090,6 +9113,7 @@
         };
 
         function openAudioCommuteModal() {
+            pushNavHistory('modal-commute');
             const list = (typeof getDueCards === 'function' ? getDueCards() : []) || [];
             const allCards = (list && list.length > 0) ? list : ((typeof getCurrentSubCatCards === 'function' ? getCurrentSubCatCards() : []) || (typeof cards !== 'undefined' ? cards : []));
             if (!allCards || allCards.length === 0) {
@@ -9501,6 +9525,7 @@
         }
 
         function openAchievementsModal() {
+            pushNavHistory('modal-achieve');
             const isAr = (appLang === 'ar');
             const unlocked = getUnlockedAchievements();
 
@@ -10596,6 +10621,7 @@
             if (ev) ev.stopPropagation();
             const card = cardId != null ? cards.find(c => String(c.id) === String(cardId)) : currentCard;
             if (!card) return;
+            pushNavHistory('modal-sch');
             schCardId = card.id;
             const isAr = (appLang === 'ar');
             const cfg = (card.plan && card.plan.cfg) || {};
@@ -10784,6 +10810,7 @@
             const modal = document.getElementById('stats-modal');
             const box = document.getElementById('stats-modal-content');
             if (!modal || !box) return;
+            pushNavHistory('modal-stats');
 
             const isAr = (appLang === 'ar');
             const sData = getStreakData();
@@ -11239,6 +11266,7 @@
 
         // ====== دوال إدارة الكروت (عرض / تعديل / حذف) ======
         function openManageModal() {
+            pushNavHistory('modal-manage');
             document.getElementById('search-cards-input').value = '';
             document.getElementById('manage-modal').classList.add('active');
             renderManageList();
@@ -11324,6 +11352,7 @@
 
         // ====== دوال البحث الشامل السريع (Global Search) ======
         function openGlobalSearch() {
+            pushNavHistory('modal-search');
             let modal = document.getElementById('global-search-modal');
             const isAr = (appLang === 'ar');
 
@@ -12937,6 +12966,7 @@
     }
 
     window.lsOpen = function (id) {
+        if (typeof pushNavHistory === 'function') pushNavHistory('modal-ls');
         const oldOv = document.getElementById('ls-ov');
         if (oldOv) oldOv.remove();
 
