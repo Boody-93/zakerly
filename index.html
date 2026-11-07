@@ -10129,19 +10129,41 @@
         }
 
         function speakWordWithCallback(text, rate, onEnd) {
-            if (typeof window === 'undefined' || !window.speechSynthesis) {
-                if (onEnd) setTimeout(onEnd, 1200);
+            const cleanText = cleanTextForTTS(text);
+            if (!cleanText) {
+                if (onEnd) onEnd();
                 return;
             }
-            window.speechSynthesis.cancel();
-            const cleanText = (text || '').replace(/\[\.\.\.\]/g, 'فراغ').replace(/<[^>]*>/g, '');
-            const u = new SpeechSynthesisUtterance(cleanText);
-            const isAr = /[\u0600-\u06FF]/.test(cleanText);
-            u.lang = isAr ? 'ar-SA' : 'en-US';
-            u.rate = rate || 1.0;
-            u.onend = () => { if (onEnd) onEnd(); };
-            u.onerror = () => { if (onEnd) onEnd(); };
-            window.speechSynthesis.speak(u);
+
+            if (typeof stopAllSpeech === 'function') stopAllSpeech();
+            else if (typeof window !== 'undefined' && window.speechSynthesis) window.speechSynthesis.cancel();
+
+            const isArabic = /[\u0600-\u06FF]/.test(cleanText);
+            const subCat = (typeof getCurrentSubCat === 'function') ? getCurrentSubCat() : null;
+            const targetLang = isArabic ? 'ar' : (subCat && subCat.langCode && subCat.langCode !== 'auto' ? subCat.langCode : 'en');
+            const bestVoice = (typeof getBestVoiceForLang === 'function') ? getBestVoiceForLang(targetLang) : null;
+
+            if (bestVoice && 'speechSynthesis' in window && typeof playSpeechChunks === 'function') {
+                const chunks = chunkTextForSpeech(cleanText, 160);
+                playSpeechChunks(chunks, targetLang, bestVoice, rate || 1.0, onEnd);
+                return;
+            }
+
+            if (typeof fallbackToHighQualityAudio === 'function') {
+                fallbackToHighQualityAudio(cleanText, targetLang, rate || 1.0, onEnd);
+                return;
+            }
+
+            if (typeof window !== 'undefined' && window.speechSynthesis) {
+                const u = new SpeechSynthesisUtterance(cleanText);
+                u.lang = isArabic ? 'ar-SA' : 'en-US';
+                u.rate = rate || 1.0;
+                u.onend = () => { if (onEnd) onEnd(); };
+                u.onerror = () => { if (onEnd) onEnd(); };
+                window.speechSynthesis.speak(u);
+            } else if (onEnd) {
+                setTimeout(onEnd, 1200);
+            }
         }
 
         // ====== 4. وضع محاكي ليلة الامتحان والمراجعة المكثفة (Exam Simulator) ======
@@ -10994,44 +11016,255 @@
             }
         }
 
+        // =========================================================================
+        // محرك أصوات مايكروسوفت الذكية العصبية (Microsoft Edge Neural Voices Engine)
+        // =========================================================================
         let activeTTSAudio = null;
+        let zkSpeechVoices = [];
+        let zkVoicesLoaded = false;
+        let isSpeakingQueue = false;
+
         const LANG_LOCALES = {
             ar: 'ar-SA', en: 'en-US', de: 'de-DE', fr: 'fr-FR',
             es: 'es-ES', it: 'it-IT', tr: 'tr-TR', ru: 'ru-RU',
             nl: 'nl-NL', pt: 'pt-BR', zh: 'zh-CN', ja: 'ja-JP', ko: 'ko-KR'
         };
 
-        // تحميل الأصوات الطبيعية في المتصفح مسبقاً
-        if ('speechSynthesis' in window) {
-            window.speechSynthesis.getVoices();
-            window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+        // أسماء أصوات مايكروسوفت العصبية الطبيعية المعتمدة دولياً
+        const EDGE_NEURAL_VOICES_REGISTRY = {
+            en: ['Jenny', 'Guy', 'Aria', 'Christopher', 'Eric', 'Michelle', 'Roger', 'Steffan', 'Sonia', 'Ryan', 'Libby'],
+            tr: ['Ahmet', 'Emel'],
+            de: ['Katja', 'Conrad', 'Amala', 'Killian'],
+            fr: ['Denise', 'Henri', 'Eloise'],
+            es: ['Elvira', 'Alvaro'],
+            ar: ['Salma', 'Shakir', 'Zariyah', 'Hamed'],
+            it: ['Elsa', 'Diego'],
+            ru: ['Svetlana', 'Dmitry'],
+            ja: ['Nanami', 'Keita'],
+            ko: ['SunHi', 'InJoon'],
+            zh: ['Xiaoxiao', 'Yunxi'],
+            nl: ['Colette', 'Fenna'],
+            pt: ['Francisca', 'Antonio']
+        };
+
+        // ذاكرة تخزين مؤقت للصوتيات لضمان السرعة الفائقة والعمل أوفلاين
+        const zkAudioCache = new Map();
+
+        function refreshAvailableVoices() {
+            if (typeof window === 'undefined' || !('speechSynthesis' in window)) return [];
+            try {
+                const list = window.speechSynthesis.getVoices();
+                if (list && list.length > 0) {
+                    zkSpeechVoices = list;
+                    zkVoicesLoaded = true;
+                }
+            } catch (e) { }
+            return zkSpeechVoices;
+        }
+
+        // تهيئة فورية ومستمرة لالتقاط أصوات مايكروسوفت فور تحميل المتصفح لها
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+            refreshAvailableVoices();
+            window.speechSynthesis.onvoiceschanged = () => {
+                refreshAvailableVoices();
+            };
+            let retryCount = 0;
+            const voiceTimer = setInterval(() => {
+                refreshAvailableVoices();
+                retryCount++;
+                if (zkVoicesLoaded || retryCount > 10) clearInterval(voiceTimer);
+            }, 250);
         }
 
         function cleanTextForTTS(rawText) {
             return String(rawText || '')
+                .replace(/<[^>]*>/g, ' ') // إزالة وسوم HTML
+                .replace(/\[\.\.\.\]/g, ' ') // إزالة نقاط الفراغ
+                .replace(/\[.*?\]/g, ' ') // إزالة الأقواس المربعة
                 .replace(/\([^)]*\)/g, '') // حذف أي توضيح بين قوسين مثل (1)
-                .replace(/[^\p{L}\p{M}\p{N}\s.,?!'’؟،-]/gu, '') // حذف كل الإيموجيز والرموز تماماً
+                .replace(/[^\p{L}\p{M}\p{N}\s.,?!'’؟،-]/gu, '') // حذف الإيموجيز والرموز
                 .replace(/\s+/g, ' ')
                 .trim();
         }
 
-        function speakWithNaturalVoice(cleanText, langCode, rate = 0.92) {
-            if (!('speechSynthesis' in window)) return;
-            window.speechSynthesis.cancel();
+        function chunkTextForSpeech(text, maxLen = 160) {
+            if (!text || text.length <= maxLen) return [text];
+            const sentences = text.match(/[^.!?،؟;\n]+[.!?،؟;\n]+|[^.!?،؟;\n]+/g) || [text];
+            const chunks = [];
+            let current = '';
+
+            for (const s of sentences) {
+                const trimmed = s.trim();
+                if (!trimmed) continue;
+                if ((current + ' ' + trimmed).trim().length <= maxLen) {
+                    current = (current ? current + ' ' + trimmed : trimmed);
+                } else {
+                    if (current) chunks.push(current);
+                    if (trimmed.length > maxLen) {
+                        const words = trimmed.split(/\s+/);
+                        let sub = '';
+                        for (const w of words) {
+                            if ((sub + ' ' + w).trim().length <= maxLen) {
+                                sub = (sub ? sub + ' ' + w : w);
+                            } else {
+                                if (sub) chunks.push(sub);
+                                sub = w;
+                            }
+                        }
+                        if (sub) current = sub;
+                        else current = '';
+                    } else {
+                        current = trimmed;
+                    }
+                }
+            }
+            if (current) chunks.push(current);
+            return chunks.length > 0 ? chunks : [text];
+        }
+
+        function getBestVoiceForLang(langCode) {
+            const voices = refreshAvailableVoices();
+            if (!voices || voices.length === 0) return null;
+
+            const targetLang = (langCode || 'en').toLowerCase().split(/[-_]/)[0];
+            const matching = voices.filter(v => {
+                const vl = (v.lang || '').toLowerCase().replace('_', '-');
+                return vl.startsWith(targetLang);
+            });
+            if (matching.length === 0) return null;
+
+            const edgeNames = EDGE_NEURAL_VOICES_REGISTRY[targetLang] || [];
+
+            // 1. الأولوية القصوى: أصوات Microsoft Edge Online Natural
+            const msEdgeNatural = matching.find(v => {
+                const n = v.name || '';
+                const isNatural = n.includes('Natural') || n.includes('Online');
+                const isMs = n.includes('Microsoft') || n.includes('Edge');
+                const hasEdgeName = edgeNames.some(name => n.includes(name));
+                return (isNatural && isMs) || hasEdgeName;
+            });
+            if (msEdgeNatural) return msEdgeNatural;
+
+            // 2. أي صوت طبيعي / عصبي آخر في المتصفح
+            const anyNatural = matching.find(v => {
+                const n = v.name || '';
+                return n.includes('Natural') || n.includes('Online') || n.includes('Neural');
+            });
+            if (anyNatural) return anyNatural;
+
+            // 3. أصوات Google و Apple الحديثة عالية الجودة
+            const premiumVoices = matching.find(v => {
+                const n = v.name || '';
+                return n.includes('Google') || n.includes('Premium') || n.includes('Enhanced') || n.includes('Siri');
+            });
+            if (premiumVoices) return premiumVoices;
+
+            // 4. الصوت الافتراضي للنظام
+            return matching.find(v => v.default) || matching[0];
+        }
+
+        function stopAllSpeech() {
+            if (activeTTSAudio) {
+                try { activeTTSAudio.pause(); } catch (e) { }
+                activeTTSAudio = null;
+            }
+            if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+                try { window.speechSynthesis.cancel(); } catch (e) { }
+            }
+            isSpeakingQueue = false;
+        }
+
+        function playSpeechChunks(chunks, langCode, voice, rate = 1.0, onEndCallback = null) {
+            stopAllSpeech();
+            if (!chunks || chunks.length === 0) {
+                if (onEndCallback) onEndCallback();
+                return;
+            }
 
             const locale = LANG_LOCALES[langCode] || langCode;
-            const utterance = new SpeechSynthesisUtterance(cleanText);
-            utterance.lang = locale;
-            utterance.rate = rate;
+            let chunkIndex = 0;
+            isSpeakingQueue = true;
 
-            const voices = window.speechSynthesis.getVoices();
-            const langVoices = voices.filter(v => v.lang.toLowerCase().startsWith(langCode.toLowerCase()));
-            const bestVoice = langVoices.find(v => v.name.includes('Natural') || v.name.includes('Online'))
-                || langVoices.find(v => v.name.includes('Google'))
-                || langVoices[0];
+            function playNext() {
+                if (!isSpeakingQueue || chunkIndex >= chunks.length) {
+                    isSpeakingQueue = false;
+                    if (onEndCallback) onEndCallback();
+                    return;
+                }
 
-            if (bestVoice) utterance.voice = bestVoice;
-            window.speechSynthesis.speak(utterance);
+                const textChunk = chunks[chunkIndex++];
+                const u = new SpeechSynthesisUtterance(textChunk);
+                u.lang = locale;
+                // وتيرة الحديث الطبيعي (0.95 للنطق العادي لإضفاء نبرة بشرية مريحة، و0.55 للسلحفاة)
+                u.rate = (rate === 1.0) ? 0.95 : rate;
+                u.pitch = 1.0;
+                if (voice) u.voice = voice;
+
+                u.onend = () => {
+                    playNext();
+                };
+                u.onerror = () => {
+                    playNext();
+                };
+
+                window.speechSynthesis.speak(u);
+            }
+
+            playNext();
+        }
+
+        function fallbackToHighQualityAudio(cleanText, targetLang, rate = 1.0, onEndCallback = null) {
+            const cacheKey = `${targetLang}_${rate}_${cleanText}`;
+            if (zkAudioCache.has(cacheKey)) {
+                const cachedAudio = zkAudioCache.get(cacheKey);
+                try {
+                    cachedAudio.currentTime = 0;
+                    cachedAudio.playbackRate = rate;
+                    activeTTSAudio = cachedAudio;
+                    if (onEndCallback) cachedAudio.onended = onEndCallback;
+                    cachedAudio.play().catch(() => {});
+                    return;
+                } catch (e) { }
+            }
+
+            const shortText = cleanText.length > 180 ? cleanText.substring(0, 180) : cleanText;
+            const url = `https://translate.google.com/translate_tts?client=gtx&ie=UTF-8&tl=${encodeURIComponent(targetLang)}&q=${encodeURIComponent(shortText)}`;
+            
+            const audio = new Audio(url);
+            audio.referrerPolicy = "no-referrer";
+            audio.playbackRate = rate;
+            activeTTSAudio = audio;
+
+            audio.onended = () => {
+                if (activeTTSAudio === audio) activeTTSAudio = null;
+                if (onEndCallback) onEndCallback();
+            };
+            audio.onerror = () => {
+                if (activeTTSAudio === audio) activeTTSAudio = null;
+                if ('speechSynthesis' in window) {
+                    const u = new SpeechSynthesisUtterance(cleanText);
+                    u.lang = LANG_LOCALES[targetLang] || targetLang;
+                    u.rate = (rate === 1.0) ? 0.95 : rate;
+                    if (onEndCallback) u.onend = onEndCallback;
+                    window.speechSynthesis.speak(u);
+                } else if (onEndCallback) {
+                    onEndCallback();
+                }
+            };
+
+            audio.play().then(() => {
+                zkAudioCache.set(cacheKey, audio);
+            }).catch(() => {
+                if ('speechSynthesis' in window) {
+                    const u = new SpeechSynthesisUtterance(cleanText);
+                    u.lang = LANG_LOCALES[targetLang] || targetLang;
+                    u.rate = (rate === 1.0) ? 0.95 : rate;
+                    if (onEndCallback) u.onend = onEndCallback;
+                    window.speechSynthesis.speak(u);
+                } else if (onEndCallback) {
+                    onEndCallback();
+                }
+            });
         }
 
         function speakCurrentCard(side, event, rate = 1.0) {
@@ -11044,43 +11277,50 @@
         }
 
         function speakWord(text, event, rate = 1.0) {
-            if (event) event.stopPropagation();
+            if (event && event.stopPropagation) event.stopPropagation();
             const cleanText = cleanTextForTTS(text);
             if (!cleanText) return;
 
-            if (activeTTSAudio) {
-                activeTTSAudio.pause();
-                activeTTSAudio = null;
-            }
-            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+            stopAllSpeech();
 
             const isArabic = /[\u0600-\u06FF]/.test(cleanText);
-            const subCat = getCurrentSubCat();
-            const targetLang = isArabic ? 'ar' : (subCat.langCode && subCat.langCode !== 'auto' ? subCat.langCode : 'en');
-            const voices = ('speechSynthesis' in window) ? window.speechSynthesis.getVoices() : [];
-            const hasHighQualityBrowserVoice = voices.some(v =>
-                v.lang.toLowerCase().startsWith(targetLang.toLowerCase()) &&
-                (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Online'))
-            );
+            const subCat = (typeof getCurrentSubCat === 'function') ? getCurrentSubCat() : null;
+            const targetLang = isArabic ? 'ar' : (subCat && subCat.langCode && subCat.langCode !== 'auto' ? subCat.langCode : 'en');
+            const chunks = chunkTextForSpeech(cleanText, 160);
 
-            if (targetLang === 'en') {
-                const audio = new Audio(`https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(cleanText)}&type=2`);
-                audio.referrerPolicy = "no-referrer";
-                audio.playbackRate = rate;
-                activeTTSAudio = audio;
-                audio.play().catch(() => speakWithNaturalVoice(cleanText, 'en', rate * 0.92));
-            } else if (hasHighQualityBrowserVoice) {
-                speakWithNaturalVoice(cleanText, targetLang, rate * 0.92);
+            // 1. الأولوية: أصوات مايكروسوفت الذكية Edge Neural والأصوات الطبيعية
+            const bestVoice = getBestVoiceForLang(targetLang);
+            if (bestVoice && 'speechSynthesis' in window) {
+                playSpeechChunks(chunks, targetLang, bestVoice, rate);
+                return;
+            }
+
+            // 2. إذا كانت الأصوات قيد التحميل في المتصفح، انتظر للحظة وجرب مجدداً
+            const allVoices = refreshAvailableVoices();
+            if (allVoices.length === 0 && 'speechSynthesis' in window) {
+                setTimeout(() => {
+                    const delayedVoice = getBestVoiceForLang(targetLang);
+                    if (delayedVoice) {
+                        playSpeechChunks(chunks, targetLang, delayedVoice, rate);
+                    } else {
+                        fallbackToHighQualityAudio(cleanText, targetLang, rate);
+                    }
+                }, 120);
+                return;
+            }
+
+            // 3. الصوت البديل عالي الدقة (24kHz)
+            fallbackToHighQualityAudio(cleanText, targetLang, rate);
+        }
+
+        // توافقية لدوال النطق الطبيعي السابقة
+        function speakWithNaturalVoice(cleanText, langCode, rate = 0.95) {
+            const bestVoice = getBestVoiceForLang(langCode);
+            const chunks = chunkTextForSpeech(cleanText, 160);
+            if (bestVoice && 'speechSynthesis' in window) {
+                playSpeechChunks(chunks, langCode, bestVoice, rate);
             } else {
-                const youdaoSupported = ['fr', 'de', 'es', 'it', 'ru', 'ja', 'ko', 'zh'];
-                const url = youdaoSupported.includes(targetLang)
-                    ? `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(cleanText)}&le=${targetLang}`
-                    : `https://translate.googleapis.com/translate_tts?client=tw-ob&ie=UTF-8&tl=${targetLang}&q=${encodeURIComponent(cleanText)}`;
-                const audio = new Audio(url);
-                audio.referrerPolicy = "no-referrer";
-                audio.playbackRate = rate;
-                activeTTSAudio = audio;
-                audio.play().catch(() => speakWithNaturalVoice(cleanText, targetLang, rate * 0.92));
+                fallbackToHighQualityAudio(cleanText, langCode, rate);
             }
         }
 
@@ -13761,7 +14001,8 @@
     window.lsListenLesson = function () {
         if (!('speechSynthesis' in window)) return toast(T('المتصفح لا يدعم نطق النصوص', 'TTS not supported'));
         if (isSpeakingLesson) {
-            window.speechSynthesis.cancel();
+            if (typeof stopAllSpeech === 'function') stopAllSpeech();
+            else window.speechSynthesis.cancel();
             isSpeakingLesson = false;
             updateSpeakerBtn(false);
             toast(T('تم إيقاف القراءة', 'Reading stopped'));
@@ -13771,31 +14012,33 @@
         const rawText = (ed ? ed.innerText : '').trim();
         if (!rawText) return toast(T('لا يوجد نص في الدرس لقراءته', 'No text to read'));
 
-        window.speechSynthesis.cancel();
         const cleanText = (typeof cleanTextForTTS === 'function') ? cleanTextForTTS(rawText) : rawText;
         const isAr = /[\u0600-\u06FF]/.test(cleanText);
-        const langCode = isAr ? 'ar-SA' : 'en-US';
+        const langCode = isAr ? 'ar' : 'en';
 
-        const utterance = new SpeechSynthesisUtterance(cleanText);
-        utterance.lang = langCode;
-        utterance.rate = 0.95;
+        const bestVoice = (typeof getBestVoiceForLang === 'function') ? getBestVoiceForLang(langCode) : null;
+        const chunks = (typeof chunkTextForSpeech === 'function') ? chunkTextForSpeech(cleanText, 160) : [cleanText];
 
-        const voices = window.speechSynthesis.getVoices();
-        const bestVoice = voices.find(v => v.lang.toLowerCase().startsWith(langCode.slice(0, 2)) && (v.name.includes('Natural') || v.name.includes('Google'))) || voices.find(v => v.lang.toLowerCase().startsWith(langCode.slice(0, 2)));
-        if (bestVoice) utterance.voice = bestVoice;
+        isSpeakingLesson = true;
+        updateSpeakerBtn(true);
+        toast(T('🔊 جاري قراءة الدرس بصوت طبيعي واضح...', '🔊 Reading lesson with natural voice...'));
 
-        utterance.onstart = () => {
-            isSpeakingLesson = true;
-            updateSpeakerBtn(true);
-            toast(T('🔊 جاري قراءة الدرس بصوت واضح...', '🔊 Reading lesson out loud...'));
-        };
-
-        utterance.onend = utterance.onerror = () => {
-            isSpeakingLesson = false;
-            updateSpeakerBtn(false);
-        };
-
-        window.speechSynthesis.speak(utterance);
+        if (typeof playSpeechChunks === 'function') {
+            playSpeechChunks(chunks, langCode, bestVoice, 0.95, () => {
+                isSpeakingLesson = false;
+                updateSpeakerBtn(false);
+            });
+        } else {
+            const u = new SpeechSynthesisUtterance(cleanText);
+            u.lang = isAr ? 'ar-SA' : 'en-US';
+            u.rate = 0.95;
+            if (bestVoice) u.voice = bestVoice;
+            u.onend = u.onerror = () => {
+                isSpeakingLesson = false;
+                updateSpeakerBtn(false);
+            };
+            window.speechSynthesis.speak(u);
+        }
     };
 
     function updateSpeakerBtn(speaking) {
