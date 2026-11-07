@@ -4453,15 +4453,70 @@
         .zk-target-capsule {
             display: flex;
             align-items: center;
-            gap: 7px;
-            background: rgba(99, 102, 241, 0.12);
-            border: 1px solid rgba(99, 102, 241, 0.25);
-            padding: 6px 12px;
+            justify-content: space-between;
+            gap: 8px;
+            background: rgba(99, 102, 241, 0.09);
+            border: 1px solid rgba(129, 140, 248, 0.28);
+            padding: 5px 10px;
             border-radius: 12px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .zk-target-select-wrap {
+            position: relative;
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .zk-deck-picker-select {
+            width: 100%;
+            background: rgba(99, 102, 241, 0.16);
+            border: 1px solid rgba(129, 140, 248, 0.35);
+            border-radius: 8px;
+            color: #e0e7ff;
             font-size: 0.78rem;
             font-weight: 700;
-            color: #a5b4fc;
-            margin-bottom: 12px;
+            font-family: inherit;
+            padding: 4px 22px 4px 8px;
+            cursor: pointer;
+            outline: none;
+            appearance: none;
+            -webkit-appearance: none;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            overflow: hidden;
+            transition: all 0.2s ease;
+        }
+
+        [dir="rtl"] .zk-deck-picker-select,
+        .rtl .zk-deck-picker-select {
+            padding: 4px 8px 4px 22px;
+        }
+
+        .zk-deck-picker-select:focus,
+        .zk-deck-picker-select:hover {
+            background: rgba(99, 102, 241, 0.26);
+            border-color: #818cf8;
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
+        }
+
+        .zk-deck-picker-select optgroup {
+            background: #18192e;
+            color: #818cf8;
+            font-weight: 800;
+            font-size: 0.82rem;
+            padding: 4px 0;
+        }
+
+        .zk-deck-picker-select option {
+            background: #0f172a;
+            color: #f1f5f9;
+            font-weight: 600;
+            font-size: 0.8rem;
+            padding: 6px 10px;
         }
 
         @keyframes fadeInScale {
@@ -4507,8 +4562,8 @@
             position: absolute;
             left: var(--fx);
             top: var(--fy);
-            width: 58px;
-            height: 58px;
+            width: 52px;
+            height: 52px;
             padding: 0;
             border: none;
             background: none;
@@ -4517,7 +4572,8 @@
             pointer-events: none;
             -webkit-tap-highlight-color: transparent;
             transform: translate(-50%, -50%) translate(0, 0) scale(.25);
-            transition: transform .22s ease, opacity .18s ease
+            transition: transform .22s ease, opacity .18s ease;
+            z-index: 855;
         }
 
         .fab-dial.open .fab-dial-item {
@@ -4525,25 +4581,25 @@
             pointer-events: auto;
             transform: translate(-50%, -50%) translate(var(--dx), var(--dy)) scale(1);
             transition: transform .5s cubic-bezier(.34, 1.56, .64, 1), opacity .25s ease;
-            transition-delay: calc(var(--i) * 70ms)
+            transition-delay: calc(var(--i) * 55ms);
         }
 
         .fab-bubble {
-            width: 58px;
-            height: 58px;
+            width: 52px;
+            height: 52px;
             border-radius: 50%;
             display: grid;
             place-items: center;
-            font-size: 1.55rem;
+            font-size: 1.45rem;
             color: #fff;
             background: linear-gradient(145deg, var(--c1), var(--c2));
-            box-shadow: 0 10px 26px var(--c2), inset 0 1px 0 rgba(255, 255, 255, .35);
-            border: 1.5px solid rgba(255, 255, 255, .22)
+            box-shadow: 0 8px 24px var(--c2), inset 0 1px 0 rgba(255, 255, 255, .35);
+            border: 1.5px solid rgba(255, 255, 255, .25);
         }
 
         .fab-bubble svg {
-            width: 27px;
-            height: 27px;
+            width: 24px;
+            height: 24px;
             stroke-width: 2.2;
             filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.3));
             transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -4555,7 +4611,7 @@
 
         .fab-dial.open .fab-bubble {
             animation: fabBob 3s ease-in-out infinite;
-            animation-delay: calc(var(--i) * -.7s)
+            animation-delay: calc(var(--i) * -.7s);
         }
 
         @keyframes fabBob {
@@ -4566,35 +4622,40 @@
             }
 
             50% {
-                translate: 0 -6px
+                translate: 0 -5px
             }
         }
 
         .fab-dial-item:active .fab-bubble {
-            transform: scale(.9)
+            transform: scale(.9);
         }
 
         .fab-label {
             position: absolute;
             top: 100%;
             left: 50%;
-            margin-top: 8px;
+            margin-top: 6px;
             transform: translateX(-50%);
             white-space: nowrap;
-            font: 800 .72rem Cairo, sans-serif;
-            padding: 3px 11px;
+            font: 700 .70rem Cairo, system-ui, -apple-system, sans-serif;
+            letter-spacing: -0.1px;
+            padding: 3px 10px;
             border-radius: 999px;
-            color: var(--ink);
-            background: var(--surf);
-            border: 1px solid var(--line);
-            box-shadow: 0 6px 16px rgba(0, 0, 0, .25);
+            color: #f8fafc;
+            background: rgba(15, 23, 42, 0.94);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, .45);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
             opacity: 0;
-            transition: opacity .2s ease
+            pointer-events: none;
+            transition: opacity .2s ease;
+            z-index: 860;
         }
 
         .fab-dial.open .fab-label {
             opacity: 1;
-            transition-delay: calc(var(--i) * 70ms + 160ms)
+            transition-delay: calc(var(--i) * 55ms + 130ms);
         }
 
         /* نافذة الإضافة المدمجة: كارت صغير بيطلع من فوق زرار + بدل الشيت الكبيرة */
@@ -5568,8 +5629,7 @@
 
                 <!-- 3. فورم الإضافة بالجملة والنسخ الاحتياطي -->
                 <div id="form-add-bulk" style="display: none;">
-                    <div id="bulk-target-info"
-                        style="font-size: 0.75rem; color: #4f46e5; margin-bottom: 6px; font-weight: 700;"></div>
+                    <div id="bulk-target-info" class="zk-target-capsule"></div>
                     <textarea id="bulk-input" rows="4"
                         placeholder="اكتب كل كارت في سطر بالشكل ده:&#10;Apple - تفاحة&#10;Book - كتاب&#10;Water - ماء"
                         style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 0.8rem; margin-bottom: 8px; resize: none;"></textarea>
@@ -5718,6 +5778,25 @@
         } catch (e) {
             console.warn('Error reading flashcards from localStorage:', e);
         }
+
+        // معالجة فورية لأي كروت حُفظت سابقاً في default_sub لتعود للقسم المناسب
+        try {
+            const orphanCards = cards.filter(c => c && c.subCatId === 'default_sub');
+            if (orphanCards.length > 0) {
+                const targetCat = categories.find(c => String(c.id).includes('public') || (c.name && c.name.toLowerCase().includes('public'))) || categories[categories.length - 1] || categories[0];
+                if (targetCat) {
+                    if (!targetCat.subCategories || targetCat.subCategories.length === 0) {
+                        const subId = 'sub_' + Date.now();
+                        let cleanName = (targetCat.name || '').replace(/^[📁📂📘🌐📌📚]\s*/, '').trim() || 'Public Subjects';
+                        targetCat.subCategories = [{ id: subId, name: '📂 ' + cleanName, langCode: 'auto', children: [] }];
+                        localStorage.setItem('my_categories_v2', JSON.stringify(categories));
+                    }
+                    const targetSubId = targetCat.subCategories[0].id;
+                    orphanCards.forEach(c => { c.subCatId = targetSubId; });
+                    localStorage.setItem('my_flashcards_v3', JSON.stringify(cards));
+                }
+            }
+        } catch (e) { }
 
         // دالة لتوليد المواضيع والكروت الجاهزة لأي لغة تلقائياً
         function ensureLanguageTopics(langSubCat) {
@@ -6151,13 +6230,50 @@
             return getFolderNode();
         }
 
+        let customTargetDeckId = null;
+
+        function ensureMainCatSubCategory(main) {
+            if (!main) return null;
+            if (!main.subCategories) main.subCategories = [];
+            if (main.subCategories.length === 0) {
+                const subId = 'sub_' + Date.now();
+                let cleanName = trName(main.name).replace(/^[📁📂📘🌐📌📚]\s*/, '').trim();
+                if (!cleanName) cleanName = (appLang === 'ar') ? 'المجلد الأول' : 'Folder 1';
+                const newSub = {
+                    id: subId,
+                    name: '📂 ' + cleanName,
+                    langCode: 'auto',
+                    children: []
+                };
+                if (main.isLangCategory) {
+                    newSub.topics = [];
+                    ensureLanguageTopics(newSub);
+                }
+                main.subCategories.push(newSub);
+                currentSubCatId = subId;
+                try {
+                    localStorage.setItem('my_categories_v2', JSON.stringify(categories));
+                    localStorage.setItem('current_sub_cat', currentSubCatId);
+                } catch(e){}
+                return newSub;
+            }
+            return main.subCategories.find(s => s.id === currentSubCatId) || main.subCategories[0];
+        }
+
         function getActiveDeckId() {
+            if (customTargetDeckId) {
+                const loc = locateDeck(customTargetDeckId);
+                if (loc) return customTargetDeckId;
+            }
             if (navLevel === 'folder') {
                 const fn = getFolderNode();
                 return fn ? fn.id : 'root';
             }
             if (studyDeckOverride) return studyDeckOverride;
             const main = getCurrentMainCat();
+            if (main && (!main.subCategories || main.subCategories.length === 0)) {
+                ensureMainCatSubCategory(main);
+            }
             const sub = getCurrentSubCat();
             if (main && main.isLangCategory) {
                 ensureLanguageTopics(sub);
@@ -6472,6 +6588,13 @@
             const modal = document.getElementById('add-modal');
             modal.classList.add('active', 'compact');
             const target = tab || (navLevel === 'study' ? 'card' : 'cat');
+
+            const main = getCurrentMainCat();
+            if (main && (!main.subCategories || main.subCategories.length === 0)) {
+                ensureMainCatSubCategory(main);
+            }
+            customTargetDeckId = getActiveDeckId();
+
             switchAddTab(target);
             setAddModalTitle(target);
         }
@@ -6483,6 +6606,7 @@
         function closeAddModal() {
             document.getElementById('add-modal').classList.remove('active');
             forcedNestedTarget = null;
+            customTargetDeckId = null;
             addedCardsSessionCount = 0;
             const badge = document.getElementById('add-session-badge');
             if (badge) badge.style.display = 'none';
@@ -6507,10 +6631,10 @@
         function getAddCatLabel() {
             const ar = (appLang === 'ar');
             const mainCat = getCurrentMainCat();
-            if (navLevel === 'main') return ar ? 'قسم رئيسي' : 'Main Category';
-            if (forcedNestedTarget || navLevel === 'folder' || navLevel === 'study') return ar ? 'مجلد فرعي' : 'Subfolder';
-            if (navLevel === 'sub') return mainCat.isLangCategory ? (ar ? 'لغة' : 'Language') : (ar ? 'قسم فرعي' : 'Sub-category');
-            return mainCat.isLangCategory ? (ar ? 'موضوع' : 'Topic') : (ar ? 'قسم فرعي' : 'Sub-category');
+            if (navLevel === 'main') return ar ? 'قسم رئيسي' : 'Category';
+            if (forcedNestedTarget || navLevel === 'folder' || navLevel === 'study') return ar ? 'مجلد فرعي' : 'Folder';
+            if (navLevel === 'sub') return (mainCat && mainCat.isLangCategory) ? (ar ? 'لغة' : 'Language') : (ar ? 'مجلد' : 'Folder');
+            return (mainCat && mainCat.isLangCategory) ? (ar ? 'موضوع' : 'Topic') : (ar ? 'مجلد' : 'Folder');
         }
 
         function setAddModalTitle(tab) {
@@ -6539,38 +6663,38 @@
 
             const defs = {
                 card: {
-                    icon: `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="15" rx="2.5"/><path d="M7 6V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-2"/><line x1="7" y1="11" x2="12" y2="11"/><line x1="7" y1="15" x2="10" y2="15"/></svg>`,
+                    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="15" rx="2.5"/><path d="M7 6V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-2"/><line x1="7" y1="11" x2="12" y2="11"/><line x1="7" y1="15" x2="10" y2="15"/></svg>`,
                     label: ar ? 'كارت' : 'Card',
                     c1: '#818cf8',
                     c2: '#4f46e5'
                 },
                 sentence: {
-                    icon: `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><line x1="8" y1="9" x2="16" y2="9"></line><line x1="8" y1="13" x2="14" y2="13"></line></svg>`,
+                    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><line x1="8" y1="9" x2="16" y2="9"></line><line x1="8" y1="13" x2="14" y2="13"></line></svg>`,
                     label: ar ? 'جملة' : 'Sentence',
-                    c1: '#ec4899',
+                    c1: '#f43f5e',
                     c2: '#be185d'
                 },
                 cat: {
-                    icon: `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`,
+                    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`,
                     label: getAddCatLabel(),
                     c1: '#38bdf8',
-                    c2: '#2563eb'
+                    c2: '#0284c7'
                 },
                 bulk: {
-                    icon: `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>`,
+                    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>`,
                     label: ar ? 'مجمع / نسخ' : 'Bulk / Backup',
                     c1: '#34d399',
                     c2: '#059669'
                 },
                 lesson: {
-                    icon: `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`,
+                    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`,
                     label: ar ? 'درس' : 'Lesson',
                     c1: '#fbbf24',
                     c2: '#d97706'
                 }
             };
             const order = ['sentence', 'card', 'lesson', 'cat', 'bulk'];
-            const pos = [[-130, -50], [-85, -125], [0, -155], [85, -125], [130, -50]];
+            const pos = [[-136, -56], [-80, -145], [0, -175], [80, -145], [136, -56]];
             document.getElementById('fab-dial-items').innerHTML = order.map((k, i) => `
                 <button class="fab-dial-item" style="--i:${i};--dx:${pos[i][0]}px;--dy:${pos[i][1]}px;--c1:${defs[k].c1};--c2:${defs[k].c2};"
                         onclick="pickFabItem('${k}')" title="${defs[k].label}">
@@ -6612,20 +6736,152 @@
         });
         document.querySelectorAll('.zk-tab').forEach(b => b.addEventListener('click', closeFabDial));
 
+        function getAllAvailableDecks() {
+            const list = [];
+            (categories || []).forEach(cat => {
+                const catCleanName = trName(cat.name).replace(/^[📁📂📘🌐📌📚]\s*/, '').trim() || trName(cat.name);
+                const items = [];
+
+                if (cat.isLangCategory) {
+                    (cat.subCategories || []).forEach(sub => {
+                        ensureLanguageTopics(sub);
+                        const subCleanName = trName(sub.name);
+                        (sub.topics || []).forEach(tp => {
+                            const tpCleanName = trName(tp.name).replace(/^[📌📁📂]\s*/, '').trim() || trName(tp.name);
+                            const pathPrefix = `${subCleanName} › ${tpCleanName}`;
+                            items.push({
+                                id: tp.id,
+                                name: pathPrefix,
+                                catId: cat.id
+                            });
+                            const walk = (node, prefix) => {
+                                (node.children || []).forEach(ch => {
+                                    const chClean = trName(ch.name).replace(/^[📂📁]\s*/, '').trim() || trName(ch.name);
+                                    const full = `${prefix} › ${chClean}`;
+                                    items.push({ id: ch.id, name: full, catId: cat.id });
+                                    walk(ch, full);
+                                });
+                            };
+                            walk(tp, pathPrefix);
+                        });
+                    });
+                } else {
+                    (cat.subCategories || []).forEach(sub => {
+                        const subCleanName = trName(sub.name).replace(/^[📂📁📘]\s*/, '').trim() || trName(sub.name);
+                        items.push({
+                            id: sub.id,
+                            name: subCleanName,
+                            catId: cat.id
+                        });
+                        const walk = (node, prefix) => {
+                            (node.children || []).forEach(ch => {
+                                const chClean = trName(ch.name).replace(/^[📂📁]\s*/, '').trim() || trName(ch.name);
+                                const full = `${prefix} › ${chClean}`;
+                                items.push({ id: ch.id, name: full, catId: cat.id });
+                                walk(ch, full);
+                            });
+                        };
+                        walk(sub, subCleanName);
+                    });
+                }
+
+                if (items.length === 0) {
+                    items.push({
+                        id: 'cat_empty:' + cat.id,
+                        name: (appLang === 'ar' ? 'مجلد تلقائي في: ' : 'Default in: ') + catCleanName,
+                        catId: cat.id,
+                        isEmptyCat: true
+                    });
+                }
+
+                list.push({
+                    catId: cat.id,
+                    catName: catCleanName,
+                    items: items
+                });
+            });
+            return list;
+        }
+
+        function renderDeckOptionsHtml(selectedDeckId) {
+            const groups = getAllAvailableDecks();
+            return groups.map(g => {
+                if (!g.items.length) return '';
+                const optionsHtml = g.items.map(it => {
+                    const isSel = (it.id === selectedDeckId);
+                    return `<option value="${it.id}" ${isSel ? 'selected' : ''}>${it.name}</option>`;
+                }).join('');
+                return `<optgroup label="📂 ${g.catName}">${optionsHtml}</optgroup>`;
+            }).join('');
+        }
+
+        function renderTargetDeckCapsuleHtml() {
+            const isAr = (appLang === 'ar');
+            const deckId = getActiveDeckId();
+            const optionsHtml = renderDeckOptionsHtml(deckId);
+            return `
+                <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                    <span style="font-size:0.75rem; color:#94a3b8; font-weight:700; white-space:nowrap;">${isAr ? 'الحفظ في:' : 'Saving into:'}</span>
+                </div>
+                <div class="zk-target-select-wrap">
+                    <select class="zk-deck-picker-select" onchange="setCustomTargetDeck(this.value)" title="${isAr ? 'اضغط لتغيير المجلد المستهدف' : 'Tap to change target folder'}">
+                        ${optionsHtml}
+                    </select>
+                    <span style="position:absolute; ${isAr ? 'left:8px;' : 'right:8px;'} pointer-events:none; font-size:0.75rem; color:#818cf8;">▾</span>
+                </div>
+            `;
+        }
+
+        function setCustomTargetDeck(val) {
+            if (val && val.startsWith('cat_empty:')) {
+                const catId = val.replace('cat_empty:', '');
+                const cat = categories.find(c => c.id === catId);
+                if (cat) {
+                    const newSub = ensureMainCatSubCategory(cat);
+                    customTargetDeckId = newSub ? newSub.id : null;
+                }
+            } else {
+                customTargetDeckId = val;
+            }
+            updateAllTargetCapsules();
+        }
+
+        function updateAllTargetCapsules() {
+            const html = renderTargetDeckCapsuleHtml();
+            const cEl = document.getElementById('add-card-target-info');
+            const sEl = document.getElementById('add-sentence-target-info');
+            const bEl = document.getElementById('bulk-target-info');
+            if (cEl) cEl.innerHTML = html;
+            if (sEl) sEl.innerHTML = html;
+            if (bEl) bEl.innerHTML = html;
+        }
+
         function getTargetDeckName() {
+            const activeDeck = getActiveDeckId();
+            const loc = locateDeck(activeDeck);
+            if (loc) {
+                let name = trName(loc.cat.name);
+                if (loc.topic) {
+                    name += ' › ' + trName(loc.sub.name) + ' › ' + trName(loc.topic.name);
+                } else {
+                    name += ' › ' + trName(loc.sub.name);
+                }
+                if (loc.path && loc.path.length > 0) {
+                    let curr = loc.topic || loc.sub;
+                    for (const pId of loc.path) {
+                        const child = (curr.children || []).find(ch => ch.id === pId);
+                        if (child) {
+                            name += ' › ' + trName(child.name);
+                            curr = child;
+                        }
+                    }
+                }
+                return name.replace(/^[📁📂📘📌]\s*/, '').replace(/›\s*[📁📂📘📌]\s*/g, '› ');
+            }
             const mainCat = getCurrentMainCat();
             const subCat = getCurrentSubCat();
             let targetName = subCat ? trName(subCat.name) : (mainCat ? trName(mainCat.name) : 'عام');
-            if (mainCat && mainCat.isLangCategory) {
-                ensureLanguageTopics(subCat);
-                const topicObj = (subCat && subCat.topics) ? (subCat.topics.find(t => t.id === currentTopicId) || subCat.topics[0]) : null;
-                if (topicObj) {
-                    targetName += ' - ' + trName(topicObj.name);
-                }
-            }
-            if (navLevel === 'folder' || (navLevel === 'study' && studyDeckOverride)) {
-                getFolderChain().slice(1).forEach(n => { if (n && n.name) targetName += ' › ' + trName(n.name); });
-            }
             return (targetName || 'عام').replace(/^📘\s*/, '📂 ').replace(/^📁\s*/, '📂 ');
         }
 
@@ -6773,21 +7029,15 @@
             if (formBulk) formBulk.style.display = (tab === 'bulk') ? 'block' : 'none';
 
             if (tab === 'card') {
-                const targetInfoEl = document.getElementById('add-card-target-info');
-                if (targetInfoEl) {
-                    targetInfoEl.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> <span>${isAr ? 'سيتم الحفظ في: ' : 'Saving into: '}<b>${getTargetDeckName()}</b></span>`;
-                }
+                updateAllTargetCapsules();
                 document.getElementById('front-input').focus();
             } else if (tab === 'sentence') {
-                const targetInfoEl = document.getElementById('add-sentence-target-info');
-                if (targetInfoEl) {
-                    targetInfoEl.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> <span>${isAr ? 'سيتم الحفظ في: ' : 'Saving into: '}<b>${getTargetDeckName()}</b></span>`;
-                }
+                updateAllTargetCapsules();
                 const fInput = document.getElementById('sentence-front-input');
                 if (fInput) fInput.focus();
                 updateSentenceWordsSelector();
             } else if (tab === 'bulk') {
-                document.getElementById('bulk-target-info').innerText = t('targetInfo') + getTargetDeckName();
+                updateAllTargetCapsules();
                 document.getElementById('bulk-input').placeholder = isAr
                     ? "اكتب كل كارت في سطر بالشكل ده:\nApple - تفاحة\nBook - كتاب\nWater - ماء"
                     : "One card per line like this:\nApple - تفاحة\nBook - كتاب";
