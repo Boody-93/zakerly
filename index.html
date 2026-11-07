@@ -521,9 +521,14 @@
         }
 
         .dark-mode .sentence-word-pill {
-            background: #1e293b;
-            border-color: #334155;
-            color: #e2e8f0;
+            background: #243048;
+            border-color: rgba(255, 255, 255, 0.16);
+            color: #f1f5f9;
+        }
+
+        .dark-mode .sentence-word-pill:hover {
+            background: #2d3d5b;
+            border-color: #818cf8;
         }
 
         .sentence-word-pill:hover {
@@ -5636,6 +5641,17 @@
     </div>
 
     <script>
+        function esc(s) {
+            if (s == null) return '';
+            return String(s).replace(/[&<>"']/g, c => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            }[c]));
+        }
+
         // دالة تنظيف ومطابقة الإجابات الذكية (تجاهل الإيموجي وعلامات الترقيم والتشكيل والهمزات تماماً)
         function cleanAnswer(str) {
             if (!str) return '';
@@ -6238,6 +6254,130 @@
                 navLevel = 'main';
             }
             updateUI();
+        }
+
+        // ====== إدارة إيماءات الرجوع وزر الرجوع بنظام الهاتف (History API & Gestures) ======
+        let lastHomeBackPressTime = 0;
+
+        function handleBackAction() {
+            // 1. فحص أي نوافذ منبثقة مفتوحة وإغلاقها أولاً
+            if (typeof fabDialOpen !== 'undefined' && fabDialOpen) {
+                closeFabDial();
+                return true;
+            }
+            const fsModal = document.getElementById('zk-fullscreen-card-modal');
+            if (fsModal && fsModal.classList.contains('active')) {
+                closeCardFullscreen();
+                return true;
+            }
+            const addModal = document.getElementById('add-modal');
+            if (addModal && addModal.classList.contains('active')) {
+                closeAddModal();
+                return true;
+            }
+            const manageModal = document.getElementById('manage-modal');
+            if (manageModal && manageModal.classList.contains('active')) {
+                closeManageModal();
+                return true;
+            }
+            const statsModal = document.getElementById('stats-modal');
+            if (statsModal && statsModal.classList.contains('active')) {
+                statsModal.classList.remove('active');
+                return true;
+            }
+            const achieveModal = document.getElementById('zk-achievements-modal');
+            if (achieveModal && achieveModal.classList.contains('active')) {
+                achieveModal.classList.remove('active');
+                return true;
+            }
+            const searchModal = document.getElementById('global-search-modal');
+            if (searchModal && searchModal.classList.contains('active')) {
+                closeGlobalSearch();
+                return true;
+            }
+            const themeModal = document.getElementById('zk-theme-modal');
+            if (themeModal && themeModal.classList.contains('active')) {
+                closeThemePaletteModal();
+                return true;
+            }
+            const lsOv = document.getElementById('ls-ov');
+            if (lsOv && typeof window.lsClose === 'function') {
+                window.lsClose();
+                return true;
+            }
+            const forcedPopup = document.getElementById('forced-popup');
+            if (forcedPopup && forcedPopup.classList.contains('active')) {
+                cancelForcedPopup();
+                return true;
+            }
+
+            // 2. إذا كان المستخدم داخل شاشة فرعية أو مذاكرة
+            if (navLevel !== 'main') {
+                goBackNav();
+                return true;
+            }
+
+            // 3. إذا كان المستخدم في الصفحة الرئيسية
+            const now = Date.now();
+            const isAr = (appLang === 'ar');
+            if (now - lastHomeBackPressTime < 2200) {
+                // ضغط مرتين في الشاشة الرئيسية -> السماح بالخروج
+                return false;
+            } else {
+                lastHomeBackPressTime = now;
+                zkToast(isAr ? 'اضغط رجوع مرة أخرى للخروج من التطبيق' : 'Press back again to exit');
+                return true;
+            }
+        }
+
+        function initHistoryBackSupport() {
+            try {
+                history.replaceState({ zkApp: true, root: true }, '');
+                history.pushState({ zkApp: true, page: 'home' }, '');
+            } catch (e) { }
+
+            window.addEventListener('popstate', (e) => {
+                const handled = handleBackAction();
+                if (handled) {
+                    try {
+                        history.pushState({ zkApp: true, t: Date.now() }, '');
+                    } catch (err) { }
+                }
+            });
+
+            // دعم إيماءة السحب باللمس من حواف الشاشة (Edge Swipe Gesture)
+            let edgeTouchStartX = 0;
+            let edgeTouchStartY = 0;
+            let isEdgeTouch = false;
+
+            window.addEventListener('touchstart', (e) => {
+                if (e.touches.length !== 1) return;
+                const t = e.touches[0];
+                const edgeThreshold = 40;
+                // سحب من الحافة اليمنى أو اليسرى
+                if (t.clientX < edgeThreshold || t.clientX > window.innerWidth - edgeThreshold) {
+                    edgeTouchStartX = t.clientX;
+                    edgeTouchStartY = t.clientY;
+                    isEdgeTouch = true;
+                } else {
+                    isEdgeTouch = false;
+                }
+            }, { passive: true });
+
+            window.addEventListener('touchend', (e) => {
+                if (!isEdgeTouch || e.changedTouches.length !== 1) return;
+                const t = e.changedTouches[0];
+                const dx = t.clientX - edgeTouchStartX;
+                const dy = Math.abs(t.clientY - edgeTouchStartY);
+
+                if (dy < 70 && Math.abs(dx) > 55) {
+                    // سحب أفقي للداخل من الحافة اليمنى أو اليسرى
+                    if ((edgeTouchStartX > window.innerWidth - 60 && dx < -50) || (edgeTouchStartX < 60 && dx > 50)) {
+                        handleBackAction();
+                    }
+                }
+                isEdgeTouch = false;
+            }, { passive: true });
         }
 
         // يلاقي مكان أي كارت/مجموعة (على أي عمق) ويفتحها للمذاكرة
@@ -9935,6 +10075,7 @@
         window.addEventListener('DOMContentLoaded', () => {
             applyThemeAndAudioUI();
             updateForcedQuizBtnUI();
+            initHistoryBackSupport();
             document.getElementById('forced-popup')?.classList.remove('active');
             document.getElementById('mobile-notif')?.classList.remove('show');
             const area = document.getElementById('study-area');
